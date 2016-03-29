@@ -359,12 +359,6 @@ class PredicateStatistics(object):
                 fh.write("   %3d  %s - %s\n" % (count, pair[0], pair[1]))
 
 
-def analyze_verbnet(vn, pred=None):
-    stats = PredicateStatistics(vn, pred)
-    stats.print_missing_links('missing-roles-5.html')
-    stats.print_predicates('predicates-2.txt')
-
-
 if __name__ == '__main__':
 
     import doctest
