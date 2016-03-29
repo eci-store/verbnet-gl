@@ -81,6 +81,12 @@ def is_role(role):
     return role and (role[0].isupper() or role[0] == '?')
 
 
+def remove_role_suffix(role):
+    """Map things like Theme_i and Theme_j to Theme, which makes role mapping a
+    bit more tolerant."""
+    return role[:-2] if role[-2:] in ('_i', '_j') else role
+
+
 def spanned(text, css_class):
     """Wrap text in a span tag using css_class for the class."""
     return "<span class=%s>%s</span>" % (css_class, text)
@@ -221,7 +227,8 @@ class Frame(VerbNetObject):
                 t = get_type(arg)
                 v = get_value(arg)
                 if t == 'ThemRole' and is_role(v):
-                    roles.add(get_value(arg))
+                    role = remove_role_suffix(get_value(arg))
+                    roles.add(role)
         return roles
 
     def syntax_string(self):
