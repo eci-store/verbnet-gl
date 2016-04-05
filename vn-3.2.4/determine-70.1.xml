@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE VNCLASS SYSTEM "vn_class-3.dtd">
+<VNCLASS ID="determine-70.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="vn_schema-3.xsd">
+    <MEMBERS>
+    </MEMBERS>
+    <THEMROLES>
+        <THEMROLE type="Pivot">
+            <SELRESTRS/>
+        </THEMROLE>
+        <THEMROLE type="Theme">
+            <SELRESTRS/>
+        </THEMROLE>
+    </THEMROLES>
+    <FRAMES>
+    </FRAMES>
+    <SUBCLASSES>
+        <VNSUBCLASS ID="determine-70.1-1">
+        <MEMBERS>
+            <MEMBER name="decide" wn="decide%2:31:06" grouping="decide.02"/>
+            <MEMBER name="determine" wn="determine%2:31:02" grouping="determine.03"/>
+            <MEMBER name="dictate" wn="" grouping="dictate.01"/>
+        </MEMBERS>
+        <THEMROLES/>
+        <FRAMES>
+            <FRAME>
+                <DESCRIPTION descriptionNumber="0.2" primary="NP V NP"
+                secondary="Basic Transitive" xtag="0.2"/>
+                <EXAMPLES>
+                    <EXAMPLE>Minority votes decided the election outcome.</EXAMPLE>
+                </EXAMPLES>
+                <SYNTAX>
+                    <NP value="Pivot">
+                        <SYNRESTRS/>
+                    </NP>
+                    <VERB/>
+                    <NP value="Theme">
+                        <SYNRESTRS/>
+                    </NP>
+                </SYNTAX>
+                <SEMANTICS>
+                    <PRED value="depend">
+                        <ARGS>
+                            <ARG type="Event" value="during(E)"/>
+                            <ARG type="ThemRole" value="Pivot"/>
+                            <ARG type="ThemRole" value="Theme"/>
+                        </ARGS>
+                    </PRED>
+                </SEMANTICS>
+            </FRAME>
+            <FRAME>
+                <DESCRIPTION descriptionNumber="0.2" primary="NP V S"
+                secondary="NP-INF-OC" xtag="0.2"/>
+                <EXAMPLES>
+                    <EXAMPLE>Minority votes decided who would win the election.</EXAMPLE>
+                </EXAMPLES>
+                <SYNTAX>
+                    <NP value="Pivot">
+                        <SYNRESTRS/>
+                    </NP>
+                    <VERB/>
+                    <NP value="Theme">
+                        <SYNRESTRS/>
+                    </NP>
+                </SYNTAX>
+                <SEMANTICS>
+                    <PRED value="depend">
+                        <ARGS>
+                            <ARG type="Event" value="during(E)"/>
+                            <ARG type="ThemRole" value="Pivot"/>
+                            <ARG type="ThemRole" value="Theme"/>
+                        </ARGS>
+                    </PRED>
+                </SEMANTICS>
+            </FRAME>
+        </FRAMES> 
+        <SUBCLASSES/>
+        </VNSUBCLASS>
+        <VNSUBCLASS ID="determine-70.1-2">
+            <MEMBERS>
+                <MEMBER name="depend_on" wn="depend_on%2:42:00" grouping="depend.01"/>
+                <MEMBER name="hang_on" wn="" grouping=""/>
+                <MEMBER name="hinge_on" wn="hinge_on%2:42:00" grouping=""/>
+                <MEMBER name="turn_on" wn="turn_on%2:42:00" grouping="turn.12"/>
+            </MEMBERS>
+            <THEMROLES>
+            </THEMROLES>
+            <FRAMES>
+                <FRAME>
+                    <DESCRIPTION descriptionNumber="0.2" primary="NP V NP" secondary="Basic Transitive" xtag="0.2"/>
+                    <EXAMPLES>
+                        <EXAMPLE>The election outcome depended on minority votes.</EXAMPLE>
+                    </EXAMPLES>
+                    <SYNTAX>
+                        <NP value="Theme">
+                            <SYNRESTRS/>
+                        </NP>
+                        <VERB/>
+                        <NP value="Pivot">
+                            <SYNRESTRS/>
+                        </NP>
+                    </SYNTAX>
+                    <SEMANTICS>
+                        <PRED value="depend">
+                            <ARGS>
+                                <ARG type="Event" value="during(E)"/>
+                                <ARG type="ThemRole" value="Pivot"/>
+                                <ARG type="ThemRole" value="Theme"/>
+                            </ARGS>
+                        </PRED>
+                    </SEMANTICS>
+                </FRAME>
+                <FRAME>
+                     <DESCRIPTION descriptionNumber="0.2" primary="S V NP" secondary="" xtag="0.2"/>
+                    <EXAMPLES>
+                        <EXAMPLE>Who would win the election depended on
+                        minority votes.</EXAMPLE>
+                    </EXAMPLES>
+                    <SYNTAX>
+                        <NP value="Theme">
+                             <SYNRESTRS/>
+                        </NP>
+                        <VERB/>
+                        <NP value="Pivot">
+                            <SYNRESTRS/>
+                        </NP>
+                    </SYNTAX>
+                    <SEMANTICS>
+                        <PRED value="depend">
+                            <ARGS>
+                                <ARG type="Event" value="during(E)"/>
+                                <ARG type="ThemRole" value="Pivot"/>
+                                <ARG type="ThemRole" value="Theme"/>
+                            </ARGS>
+                        </PRED>
+                    </SEMANTICS>
+                </FRAME>
+            </FRAMES>
+            <SUBCLASSES/> 
+        </VNSUBCLASS>
+    </SUBCLASSES>
+</VNCLASS>
+
+
+
+
+
+
+

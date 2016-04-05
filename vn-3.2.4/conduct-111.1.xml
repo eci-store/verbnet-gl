@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE VNCLASS SYSTEM "vn_class-3.dtd">
+<VNCLASS ID="conduct-111.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="vn_schema-3.xsd">
+    <MEMBERS>
+	<MEMBER name="conduct" wn="" grouping=""/>
+	<MEMBER name="give" wn="" grouping="give.07"/>
+	<MEMBER name="head" wn="" grouping=""/>
+	<MEMBER name="hold" wn="" grouping=""/>
+	<MEMBER name="host" wn="" grouping=""/>
+	<MEMBER name="run" wn="" grouping=""/>
+	<MEMBER name="spearhead" wn="" grouping=""/>
+	<MEMBER name="throw" wn="" grouping=""/>
+    </MEMBERS>
+    <THEMROLES>
+	<THEMROLE type="Agent">
+	    <SELRESTRS/>
+	</THEMROLE>
+	<THEMROLE type="Theme">
+	    <SELRESTRS>
+		<SELRESTR Value="+" type="eventive"/>
+	    </SELRESTRS>
+	</THEMROLE>
+	<THEMROLE type="Beneficiary">
+	    <SELRESTRS/>
+	</THEMROLE>
+    </THEMROLES>
+    <FRAMES>
+	<FRAME>
+	    <DESCRIPTION descriptionNumber="" primary="NP V NP" secondary="Basic Transitive" xtag=""/>
+	    <EXAMPLES>
+		<EXAMPLE>The White House held a gala.</EXAMPLE>
+	    </EXAMPLES>
+	    <SYNTAX>
+		<NP value="Agent">
+		   <SYNRESTRS/>
+		</NP>
+		<VERB/>
+		<NP value="Theme">
+		    <SYNRESTRS/>
+		</NP>
+	    </SYNTAX>
+	    <SEMANTICS>
+		<PRED value="occur">
+		    <ARGS>
+			<ARG type="Event" value="End(E)"/>
+			<ARG type="ThemRole" value="Theme"/>
+		    </ARGS>
+		</PRED>
+		<PRED value="cause">
+		    <ARGS>
+			<ARG type="ThemRole" value="Agent"/>
+			<ARG type="Event" value="E"/>
+		    </ARGS>
+		</PRED>
+	    </SEMANTICS>
+	</FRAME>
+	<FRAME>
+	    <DESCRIPTION descriptionNumber="" primary="NP V NP PP" secondary="NP-PP" xtag=""/>
+	    <EXAMPLES>
+		<EXAMPLE>The White House held a state dinner for the Chinese president.</EXAMPLE>
+	    </EXAMPLES>
+	    <SYNTAX>
+		<NP value="Agent">
+		   <SYNRESTRS/>
+		</NP>
+		<VERB/>
+		<NP value="Theme">
+		    <SYNRESTRS/>
+		</NP>
+		<NP value="Beneficiary">
+		    <SYNRESTRS/>
+		</NP>
+	    </SYNTAX>
+	    <SEMANTICS>
+		<PRED value="occur">
+		    <ARGS>
+			<ARG type="Event" value="End(E)"/>
+			<ARG type="ThemRole" value="Theme"/>
+		    </ARGS>
+		</PRED>
+		<PRED value="cause">
+		    <ARGS>
+			<ARG type="ThemRole" value="Agent"/>
+			<ARG type="Event" value="E"/>
+		    </ARGS>
+		</PRED>
+		<PRED value="benefit">
+		    <ARGS>
+			<ARG type="Event" value="E"/>
+			<ARG type="ThemRole" value="Beneficiary"/>
+		    </ARGS>
+		</PRED>
+	    </SEMANTICS>
+	</FRAME>
+    </FRAMES>
+    <SUBCLASSES/>
+</VNCLASS>

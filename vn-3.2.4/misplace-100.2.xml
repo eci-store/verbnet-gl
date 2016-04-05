@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE VNCLASS SYSTEM "vn_class-3.dtd">
+<VNCLASS ID="misplace-100.2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="vn_schema-3.xsd">
+    <MEMBERS>
+        <MEMBER name="lack" wn="lack%2:42:00" grouping="lack.01"/>
+        <MEMBER name="lose" wn="lose%2:40:02 lose%2:40:01 lose%2:39:00" grouping="lose.02"/>
+        <MEMBER name="misplace" wn="misplace%2:35:00" grouping=""/>
+    </MEMBERS>
+    <THEMROLES>
+        <THEMROLE type="Pivot">
+            <SELRESTRS logic="or">
+                <SELRESTR Value="+" type="animate"/>
+                <SELRESTR Value="+" type="organization"/>
+            </SELRESTRS>
+        </THEMROLE>
+        <THEMROLE type="Theme">
+            <SELRESTRS/>
+        </THEMROLE>
+    </THEMROLES>
+    <FRAMES>
+        <FRAME>
+            <DESCRIPTION descriptionNumber="0.2" primary="NP V NP" secondary="NP" xtag="0.2"/>
+            <EXAMPLES>
+                <EXAMPLE>I lost my glasses.</EXAMPLE>
+            </EXAMPLES>
+            <SYNTAX>
+                <NP value="Pivot">
+                    <SYNRESTRS/>
+                </NP>
+                <VERB/>
+                <NP value="Theme">
+                    <SYNRESTRS/>
+                </NP>
+            </SYNTAX>
+            <SEMANTICS>
+                 <PRED bool="!" value="has_possession">
+                     <ARGS>
+                         <ARG type="Event" value="E"/>
+                         <ARG type="ThemRole" value="Pivot"/>
+                         <ARG type="ThemRole" value="Theme"/>
+                     </ARGS>
+                 </PRED>
+            </SEMANTICS>
+        </FRAME>
+    </FRAMES>
+    <SUBCLASSES/>
+</VNCLASS>
+
+
+

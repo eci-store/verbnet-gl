@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE VNCLASS SYSTEM "vn_class-3.dtd">
+<VNCLASS ID="trifle-105.3" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="vn_schema-3.xsd">
+    <MEMBERS>
+        <MEMBER name="dally" wn="" grouping=""/>
+        <MEMBER name="diddle" wn="" grouping=""/>
+        <MEMBER name="fiddle" wn="" grouping=""/>
+        <MEMBER name="play" wn="" grouping="play.07"/>
+        <MEMBER name="toy" wn="" grouping=""/>
+        <MEMBER name="trifle" wn="" grouping=""/>
+    </MEMBERS>
+    <THEMROLES>
+        <THEMROLE type="Agent">
+	    <SELRESTRS logic="or">
+	        <SELRESTR Value="+" type="animate"/>
+		<SELRESTR Value="+" type="organization"/>
+	    </SELRESTRS>
+	</THEMROLE>
+        <THEMROLE type="Theme">
+            <SELRESTRS/>
+        </THEMROLE>
+	<THEMROLE type="Manner">
+	    <SELRESTRS/>
+	</THEMROLE>
+    </THEMROLES>
+    <FRAMES>
+        <FRAME>
+            <DESCRIPTION descriptionNumber="8.1" primary="NP V PP.theme" secondary="PP;PP-theme" xtag="0.2"/>
+             <EXAMPLES>
+                 <EXAMPLE>She flirted with him.</EXAMPLE>
+             </EXAMPLES>
+             <SYNTAX>
+                 <NP value="Agent">
+                     <SYNRESTRS/>
+                 </NP>
+                 <VERB/>
+		 <PREP value="with">
+		     <SELRESTRS/>
+		 </PREP>
+		 <NP value="Theme">
+		     <SYNRESTRS/>
+		 </NP>
+             </SYNTAX>
+             <SEMANTICS>
+                 <PRED value="use">
+                     <ARGS>
+                         <ARG type="Event" value="during(E)"/>
+                         <ARG type="ThemRole" value="Agent"/>
+			 <ARG type="ThemRole" value="Theme"/>
+			 <ARG type="ThemRole" value="?Manner"/>
+                     </ARGS>
+                 </PRED>
+             </SEMANTICS>
+        </FRAME>
+    </FRAMES>
+    <SUBCLASSES/>
+</VNCLASS>
+
+
+
