@@ -84,7 +84,8 @@ class VerbClass(AbstractXML):
                 self.soup.THEMROLES.find_all("THEMROLE")]
     
     def __repr__(self):
-        return str(self.ID) + "\n" + str([mem.__repr__() for mem in self.members])
+        return str(self.ID) + "\n" + str([mem.__repr__() for mem in self.members]) \
+               + "\nThemRoles: " + str(self.themroles)
 
 class Member(AbstractXML):
     """Represents a single member of a VerbClass, with associated name, WordNet
@@ -140,20 +141,7 @@ class ThematicRole(AbstractXML):
     def __init__(self, soup):
         self.soup = soup
         self.role_type = self.get_category('type')[0]
-        self.sel_restrictions_old = self.sel_restrictions_old()
         self.sel_restrictions = self.sel_restrictions(self.soup.SELRESTRS)
-        
-    def sel_restrictions_old(self):
-        """DEPRECATED: remove after checking dependencies all still work"""
-        sel_restrs = ''
-        if len(self.soup.SELRESTRS.contents) == 0:
-            return sel_restrs
-        if len(self.get_category('logic', self.soup.SELRESTRS)) > 0:
-            for child in self.soup.SELRESTRS.find_all('SELRESTR'):
-                sel_restrs += self.get_category('Value', child)[0] + \
-                              self.get_category('type', child)[0] + ' OR '
-            sel_restrs = sel_restrs[:-4]
-        return sel_restrs
         
     def sel_restrictions(self, soup):
         """Finds all the selectional restrictions of the thematic roles and 
@@ -255,6 +243,6 @@ if __name__ == '__main__':
     #print vc1.frames
     #print vc1.themroles
     results = search(vnp.verb_classes, "motion")
-    print len(results)
-    for frame in results:
-        print frame
+    #print len(results)
+    #for frame in results:
+    #    print frame
