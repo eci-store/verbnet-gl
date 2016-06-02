@@ -221,7 +221,7 @@ def search(verbclasslist, pred_type=None, themroles=None, synroles=None, semrole
         for frame in vc.frames:
             for pred in frame.predicates:
                 if pred.value[0] == pred_type:
-                    successes.append(frame)
+                    successes.append((vc, frame))
     return successes
             
 

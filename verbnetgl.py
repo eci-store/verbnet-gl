@@ -207,13 +207,24 @@ class Qualia(object):
     structure"""
     
     def __init__(self, predicate, opposition):
-        self.formal = predicate.value
+        self.formal = predicate.value[0]
         self.opposition = opposition
         
     def __repr__(self):
         return "{ formal = " + str(self.formal) + "(e) AND Opposition " + \
                str(self.opposition) + "}"
-        
+
+def search2(verbclasslist, pred_type=None, themroles=None, synroles=None, semroles=None):
+    """Returns frames for verbclasses that match search parameters
+    TODO: figure out what it means to search for themroles, synroles, and semroles"""
+    successes = []
+    for vc in verbclasslist:
+        for frame in vc.frames:
+            if frame.qualia.formal == pred_type:
+                if vc not in successes:
+                    successes.append(vc) 
+    return successes
+
 # Test it out
 if __name__ == '__main__':
     
@@ -222,3 +233,6 @@ if __name__ == '__main__':
     vngl = [GLVerbClass(vc) for vc in vnp.verb_classes]
     print len(vngl)
     print vngl[269]
+    results = search2(vngl, "motion")
+    print results
+    print len(results)
