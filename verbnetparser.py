@@ -85,7 +85,7 @@ class VerbClass(AbstractXML):
     
     def __repr__(self):
         return str(self.ID) + "\n" + str([mem.__repr__() for mem in self.members]) \
-               + "\nThemRoles: " + str(self.themroles)
+               + "\nThemRoles: " + str(self.themroles) + "\nNames: " + str(self.names)
 
 class Member(AbstractXML):
     """Represents a single member of a VerbClass, with associated name, WordNet
@@ -240,7 +240,7 @@ if __name__ == '__main__':
     print vc1
     print
     #print vc1.names
-    #print vc1.frames
+    print vc1.frames
     #print vc1.themroles
     results = search(vnp.verb_classes, "motion")
     #print len(results)
