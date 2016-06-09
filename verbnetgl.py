@@ -233,6 +233,6 @@ if __name__ == '__main__':
     vngl = [GLVerbClass(vc) for vc in vnp.verb_classes]
     print len(vngl)
     print vngl[269]
-    results = search2(vngl, "motion")
-    print results
-    print len(results)
+    #results = search2(vngl, "motion")
+    #print results
+    #print len(results)
