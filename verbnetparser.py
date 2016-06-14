@@ -58,15 +58,20 @@ class VerbClass(AbstractXML):
     """Represents a single class of verbs in VerbNet (all verbs from the same 
     XML file).
     
-    TODO: Add SUBCLASSES"""
+    TODO: Check if nested subclasses have issues"""
     
     def __init__(self, soup):
         self.soup = soup
-        self.ID = self.get_category("ID", self.soup.VNCLASS)[0]
+        try:
+            self.ID = self.get_category("ID", self.soup.VNCLASS)[0]
+        except IndexError:
+            print self.get_category("ID", self.soup.VNSUBCLASS), self.soup
+            self.ID = self.get_category("ID", self.soup.VNSUBCLASS)[0]
         self.members = self.members()
         self.frames = self.frames()
         self.names = [mem.get_category('name')[0] for mem in self.members]
         self.themroles = self.themroles()
+        self.subclasses = self.subclass()
         
     def members(self):
         """Get all members of a verb class"""
@@ -83,9 +88,20 @@ class VerbClass(AbstractXML):
         return [ThematicRole(them_soup) for them_soup in 
                 self.soup.THEMROLES.find_all("THEMROLE")]
     
+    def subclass(self):
+        """Get every subclass listed, if any"""
+        subclasses_soup = self.soup.find_all("SUBCLASSES")
+        if len(subclasses_soup[0].text) < 1:
+            return []
+        return [VerbClass(sub_soup) for sub_soup in \
+                self.soup.SUBCLASSES.find_all("VNSUBCLASS", recursive=False)]
+    
     def __repr__(self):
         return str(self.ID) + "\n" + str([mem.__repr__() for mem in self.members]) \
-               + "\nThemRoles: " + str(self.themroles) + "\nNames: " + str(self.names)
+               + "\nThemRoles: " + str(self.themroles) \
+               + "\nNames: " + str(self.names) \
+               + "\nFrames: " + str(self.frames) \
+               + "\nSubclasses: " + str(self.subclasses)
 
 class Member(AbstractXML):
     """Represents a single member of a VerbClass, with associated name, WordNet
@@ -240,9 +256,15 @@ if __name__ == '__main__':
     print vc1
     print
     #print vc1.names
-    print vc1.frames
+    #print vc1.frames
     #print vc1.themroles
     results = search(vnp.verb_classes, "motion")
     #print len(results)
     #for frame in results:
     #    print frame
+    for vc in vnp.verb_classes:
+        if len(vc.subclasses) >= 1:
+            print vc.ID
+            for subclass in vc.subclasses:
+                if len(subclass.subclasses) > 0:
+                    print vc.ID, "nested subclass"
