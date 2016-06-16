@@ -16,22 +16,59 @@ class GLVerbClass(object):
         self.names = verbclass.names
         self.roles = verbclass.themroles
         self.frames = self.frames()
+        self.subclasses = [GLSubclass(sub, self.roles) for sub in verbclass.subclasses]
         
     def frames(self):
-        return [GLFrame(frame, self.verbclass) for frame in self.verbclass.frames]
+        return [GLFrame(frame, self.roles) for frame in self.verbclass.frames]
             
     def __repr__(self):
         return str(self.ID) + " = {\n\nroles = " + str(self.roles) + \
-               "\n\nframes = " + str(self.frames) + "\n}"
+               "\n\nframes = " + str(self.frames) + "\n}" + \
+               "\n Subclasses = " + str(self.subclasses)
+
+class GLSubclass(GLVerbClass):
+    """Represents a subclass to a GLVerbClass. This needs to be different from
+    GLVerbClass because VerbNet seems to change the THEMROLES section of the 
+    subclass to only include thematic roles that differ from the main class,
+    but does not list all the roles that stay the same. Since we need to update 
+    self.roles, we can't call __init__ on the superclass because that would call
+    self.frames and self.subclasses before we updated our roles properly.
+    
+    TODO: check this for proper nesting"""
+    
+    def __init__(self, verbclass, parent_roles):
+        self.verbclass = verbclass
+        self.ID = verbclass.ID
+        self.members = verbclass.members
+        self.names = verbclass.names
+        self.parent_roles = parent_roles
+        self.subclass_only_roles = verbclass.themroles
+        self.roles = self.themroles()
+        self.frames = self.frames()
+        self.subclasses = [GLSubclass(sub, self.roles) for sub in verbclass.subclasses]   
         
+    def themroles(self):
+        """Combines the thematic roles of the parent class and the current
+        subclass. Replaces any version of the parent class's role with one from
+        the subclass."""
+        final_roles = self.subclass_only_roles
+        for parent_role in self.parent_roles:
+            duplicate = False
+            for sub_role in self.subclass_only_roles:
+                if parent_role.role_type == sub_role.role_type:
+                    duplicate = True
+            if not duplicate:
+                final_roles.append(parent_role)
+        return final_roles
+
 class GLFrame(object):
     """GL enhanced VN frame that adds qualia and event structure, and links 
     syn/sem variables in the subcat to those in the event structure
     Event structure should be its own class or method?"""
     
-    def __init__(self, frame, vnclass):
+    def __init__(self, frame, roles):
         self.vnframe = frame
-        self.vnclass = vnclass
+        self.class_roles = roles
         self.pri_description = frame.primary
         self.sec_description = frame.secondary
         self.example = frame.examples
@@ -53,7 +90,7 @@ class GLFrame(object):
                 members.append(SubcatMember("e", synrole, None))
                 continue
             added = False
-            for themrole in self.vnclass.themroles:
+            for themrole in self.class_roles:
                 if str(synrole.value[0]).lower() == str(themrole.role_type).lower():
                     if str(synrole.POS) == "NP":
                         members.append(SubcatMember(i, synrole, themrole))
@@ -215,7 +252,7 @@ class Qualia(object):
                str(self.opposition) + "}"
 
 def search2(verbclasslist, pred_type=None, themroles=None, synroles=None, semroles=None):
-    """Returns frames for verbclasses that match search parameters
+    """Returns verbclasses that match search parameters
     TODO: figure out what it means to search for themroles, synroles, and semroles"""
     successes = []
     for vc in verbclasslist:
@@ -236,3 +273,6 @@ if __name__ == '__main__':
     #results = search2(vngl, "motion")
     #print results
     #print len(results)
+    #for i in range(len(vngl)):
+    #    if len(vngl[i].subclasses) > 0:
+    #        print i
