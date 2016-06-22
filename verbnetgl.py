@@ -157,8 +157,8 @@ class GLFrame(object):
             initial_state = State(mover_var, -destination)
             final_state = State(mover_var, destination)
         else:
-            initial_state = State(mover_var, None)
-            final_state = State(mover_var, None)
+            initial_state = State(mover_var, "?")
+            final_state = State(mover_var, "-?")
             
         opposition = Opposition(initial_state, final_state)
         self.event_structure = EventStructure(initial_state, final_state)
@@ -202,8 +202,6 @@ class State(object):
         
     def __repr__(self):
         loc = self.location
-        if not loc:
-            loc = "?"
         return "{ objects." + str(self.object_var) + ".location = " + str(loc) + " }"
 
 class EventStructure(object):
