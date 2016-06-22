@@ -4,7 +4,7 @@ with GL event structures. The classes themselves do all the conversion necessary
 given a VerbClass from verbnetparser.py
 """
 
-from verbnetparser import *
+from verbnetparser import VerbNetParser
 
 class GLVerbClass(object):
     """VerbClass analogue, with an update mostly to frames"""
