@@ -179,7 +179,7 @@ class ThematicRole(AbstractXML):
             return ['AND'] + [self.sel_restrictions(child) for child in soup.find_all('SELRESTR')]
         
     def __repr__(self):
-        return str(self.role_type) + str(self.sel_restrictions) + "\n"
+        return "\n\t" + str(self.role_type) + " / " + str(self.sel_restrictions)
         
 
 class Predicate(AbstractXML):

@@ -235,9 +235,10 @@ class Opposition(object):
             return "(At(" + str(self.initial_state.object_var) + ", " + \
                        str(self.initial_state.location) + "), At(" + \
                        str(self.final_state.object_var) + ", " + \
-                       str(self.final_state.location) + ") "
+                       str(self.final_state.location) + ")) "
         else:
-            return ""
+            return "(At(" + str(self.initial_state.object_var) + ", ?), At(" + \
+                       str(self.final_state.object_var) + ", -?)) "
     
 class Qualia(object):
     """Represents the qualia structure of a verbframe, including opposition
@@ -248,7 +249,7 @@ class Qualia(object):
         self.opposition = opposition
         
     def __repr__(self):
-        return "{ formal = " + str(self.formal) + "(e) AND Opposition " + \
+        return "{ formal = " + str(self.formal) + "(e) AND Opposition" + \
                str(self.opposition) + "}"
 
 def search2(verbclasslist, pred_type=None, themroles=None, synroles=None, semroles=None):
