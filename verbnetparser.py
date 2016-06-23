@@ -72,7 +72,7 @@ class VerbClass(AbstractXML):
         self.names = [mem.get_category('name')[0] for mem in self.members]
         self.themroles = self.themroles()
         self.subclasses = self.subclass()
-        
+
     def members(self):
         """Get all members of a verb class"""
         return [Member(mem_soup) for mem_soup in self.soup.MEMBERS.find_all("MEMBER")]

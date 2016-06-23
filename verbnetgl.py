@@ -20,11 +20,92 @@ class GLVerbClass(object):
         
     def frames(self):
         return [GLFrame(frame, self.roles) for frame in self.verbclass.frames]
+
+    def pp_html(self, fh):
+        fh.write("<html>\n")
+        fh.write("<head>\n")
+        fh.write("<link rel=\"stylesheet\" type=\"text/css\" href=\"style.css\">\n")
+        fh.write("</head>\n")
+        fh.write("<body>\n")
+        fh.write("\n<h1>%s</h1>\n" % str(self.ID))
+        for i in range(len(self.frames)):
+            vn_frame = self.verbclass.frames[i]
+            gl_frame = self.frames[i]
+            fh.write("\n<table cellpadding=8 cellspacing=0 border=0 width=1000>\n")
+            self.pp_html_description(gl_frame, fh)
+            self.pp_html_example(gl_frame, fh)
+            self.pp_html_predicate(vn_frame, fh)
+            self.pp_html_subcat(gl_frame, fh)
+            self.pp_html_qualia(gl_frame, fh)
+            self.pp_html_event(gl_frame, fh)
+            fh.write("</table>\n\n")
+
+    def pp_html_description(self, gl_frame, fh):
+        fh.write("<tr class=description>\n")
+        fh.write("  <td colspan=2>%s\n" % ' '.join(gl_frame.pri_description))
+
+    def pp_html_example(self, gl_frame, fh):
+        fh.write("<tr class=vn valign=top>\n")
+        fh.write("  <td width=180>Example\n")
+        fh.write("  <td>\"%s\"" % gl_frame.example[0])
+
+    def pp_html_predicate(self, vn_frame, fh):
+        def predicate_str(pred):
+            args = ', '.join([argtype[1] for argtype in pred.argtypes])
+            return "<span class=pred>%s</span>(%s)" % (pred.value[0], args)
+        fh.write("<tr class=vn valign=top>\n")
+        fh.write("  <td width=180>VerbNet&nbsp;predicates\n")
+        fh.write("  <td>")
+        fh.write(', '.join([predicate_str(pred) for pred in vn_frame.predicates]))
+
+    def pp_html_subcat(self, gl_frame, fh):
+        fh.write("<tr class=qualia valign=top>\n")
+        fh.write("  <td>GL&nbsp;subcategorisation\n")
+        fh.write("  <td>\n")
+        for element in gl_frame.subcat:
+            #fh.write("      { %s } <br>\n" % element)
+            fh.write("      {")
+            if element.var is not None:
+                fh.write(" var=%s" % element.var)
+            fh.write(" cat=%s" % element.cat)
+            if element.role:
+                fh.write(" role=%s" % element.role[0])
+            fh.write(" } / [")
+            self.pp_html_restriction(element.sel_res, fh)
+            fh.write("]<br>\n")
+
+    def pp_html_restriction(self, restriction, fh):
+        # print '>>', restriction
+        if not restriction:
+            pass
+        elif restriction[0] in ['+', '-']:
+            fh.write("%s%s" % (restriction[0], restriction[1]))
+        elif restriction[0] in ['OR', 'AND'] and len(restriction) == 3:
+            fh.write("(")
+            self.pp_html_restriction(restriction[1], fh)
+            fh.write(" %s " % restriction[0])
+            self.pp_html_restriction(restriction[2], fh)
+            fh.write(")")
+        else:
+            fh.write("%s" % restriction)
+
+    def pp_html_qualia(self, gl_frame, fh):
+        fh.write("<tr class=qualia valign=top>\n")
+        fh.write("  <td>GL&nbsp;qualia&nbsp;structure\n")
+        fh.write("  <td>%s\n" % gl_frame.qualia)
+
+    def pp_html_event(self, gl_frame, fh):
+        fh.write("<tr class=event valign=top>\n")
+        fh.write("  <td>GL event structure")
+        fh.write("  <td>var = %s<br>\n" % gl_frame.event_structure.var)
+        fh.write("      initial_state = %s<br>\n" % gl_frame.event_structure.initial_state)
+        fh.write("      final_state = %s\n" % gl_frame.event_structure.final_state)
             
     def __repr__(self):
         return str(self.ID) + " = {\n\nroles = " + str(self.roles) + \
                "\n\nframes = " + str(self.frames) + "\n}" + \
                "\n Subclasses = " + str(self.subclasses)
+
 
 class GLSubclass(GLVerbClass):
     """Represents a subclass to a GLVerbClass. This needs to be different from
@@ -172,6 +253,7 @@ class GLFrame(object):
                  "\nevent_structure = {" + str(self.event_structure) + "\t}\n"
         return output
 
+
 class SubcatMember(object):
     """A combination of SyntacticRole and ThematicRole"""
     
@@ -191,6 +273,7 @@ class SubcatMember(object):
                  " } / " + str(self.sel_res)
         return output
       
+
 class State(object):
     """Represents a state in the event structure
     For motion verbs, this gives the variable assignment of the mover, and its
@@ -203,6 +286,7 @@ class State(object):
     def __repr__(self):
         loc = self.location
         return "{ objects." + str(self.object_var) + ".location = " + str(loc) + " }"
+
 
 class EventStructure(object):
     """Defines the event structure for a particular frame of a verb"""
@@ -219,6 +303,7 @@ class EventStructure(object):
                  str(self.initial_state) + "\n\tfinal_ state = " + \
                  str(self.final_state) + "\n\tprogram = " + str(self.program)
         return output
+
 
 class Opposition(object):
     """Represents the opposition structure of the frame
@@ -237,6 +322,7 @@ class Opposition(object):
         else:
             return "(At(" + str(self.initial_state.object_var) + ", ?), At(" + \
                        str(self.final_state.object_var) + ", -?)) "
+
     
 class Qualia(object):
     """Represents the qualia structure of a verbframe, including opposition
@@ -258,20 +344,34 @@ def search2(verbclasslist, pred_type=None, themroles=None, synroles=None, semrol
         for frame in vc.frames:
             if frame.qualia.formal == pred_type:
                 if vc not in successes:
-                    successes.append(vc) 
+                    successes.append(vc)
     return successes
 
-# Test it out
+
+def pp_html(results):
+    INDEX = open('html/index.html', 'w')
+    INDEX.write("<html>\n")
+    INDEX.write("<head>\n")
+    INDEX.write("<link rel=\"stylesheet\" type=\"text/css\" href=\"style.css\">\n")
+    INDEX.write("</head>\n")
+    INDEX.write("<body>\n")
+    INDEX.write("<table cellpadding=8 cellspacing=0>\n")
+    INDEX.write("<tr class=header><td>VN Motion Classes</a>\n")
+    for result in results:
+        class_file = "vnclass-%s.html" % result.ID
+        INDEX.write("<tr class=vnlink><td><a href=\"%s\">%s</a>\n" % (class_file, result.ID))
+        VNCLASS =  open("html/%s" % class_file, 'w')
+        result.pp_html(VNCLASS)
+    INDEX.write("</table>\n")
+    INDEX.write("</body>\n")
+    INDEX.write("</html>\n")
+
+
 if __name__ == '__main__':
     
     vnp = VerbNetParser()
-    print len(vnp.parsed_files)
     vngl = [GLVerbClass(vc) for vc in vnp.verb_classes]
-    print len(vngl)
+    results = search2(vngl, "motion")
+    print len(results)
     print vngl[269]
-    #results = search2(vngl, "motion")
-    #print results
-    #print len(results)
-    #for i in range(len(vngl)):
-    #    if len(vngl[i].subclasses) > 0:
-    #        print i
+    pp_html(results)
