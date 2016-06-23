@@ -1,0 +1,18 @@
+
+table { margin: 5pt; margin-bottom: 10pt; border: 1px solid darkgrey; }
+
+h1 { padding: 10px;  margin: 5pt; margin-bottom: 15pt; border: 1px solid black; width:980px; }
+
+a:link { color: black; text-decoration: none; }
+a:visited { color: darkblue; text-decoration: none; }
+a:hover { color: darkred; text-decoration: none; font-weight: bold; }
+a:active { color: black; text-decoration: none; }
+
+.list { margin: 10pt; padding-left: 8pt; border: 1px solid darkgrey; width: 150pt; background-color: e8ffff; }
+.header { background-color: skyblue; }
+.vnlink { background-color: e8ffff; }
+.description { background-color: skyblue; }
+.vn { background-color: e8ffff; }
+.qualia { background-color: lightyellow; }
+.event { background-color: lightyellow; }
+.pred { font-weight: bold; color: darkred; font-variant: small-caps; }
