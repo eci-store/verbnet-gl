@@ -156,7 +156,7 @@ class GLFrame(object):
         self.subcat = self.subcat()
         self.qualia = None
         self.event_structure = None
-        self.event_and_opposition_structure()
+        self.event_and_opposition_structure2()
         
     def subcat(self):
         """Creates the subcat frame structure with unique variables assigned to
@@ -241,9 +241,113 @@ class GLFrame(object):
             initial_state = State(mover_var, "?")
             final_state = State(mover_var, "-?")
             
-        opposition = Opposition(initial_state, final_state)
+        opposition = Opposition(None, initial_state, final_state)
         self.event_structure = EventStructure(initial_state, final_state)
         self.qualia = Qualia(self.vnframe.predicates[0], opposition)
+        
+    def event_and_opposition_structure2(self):
+        """Uses the frame information to determine what initial and final states
+        should look like, given the variables available in the subcat frame, and
+        the roles for the verb class
+        """
+        initial_states = []
+        final_states = []        
+        type_of_change = None
+        
+        # Get all the subcat members that have a variable
+        member_vars = {}
+        for submember in self.subcat:
+            if submember.var not in [None, "e"]:
+                member_vars[submember.role[0]] = submember.var
+                
+        # Get which ThemRole is changing because of the action, and its variable in the frame
+        pred_type = None
+        changers = []   # Can have more than one object with opposition
+        unexpressed_changers = []
+        start = []
+        end = []
+        for pred in self.vnframe.predicates:
+            if pred.value[0] == 'motion' or pred.value[0] == 'transfer':
+                pred_type = pred.value[0]
+                for argtype, value in pred.argtypes:
+                    if argtype == 'ThemRole':
+                        changers.append(value)
+                        unexpressed_changers.append('?' + value)
+                    
+        if pred_type and 'exchange' not in self.vnframe.class_ID and 'butter' not in self.vnframe.class_ID:
+            equals = []
+            for pred in self.vnframe.predicates:
+                if pred.value[0] == 'path_rel':
+                    is_start = False
+                    is_end = False
+                    local_changer = None
+                    opposition = None       # where the object is or who owns it
+                    for argtype, value in pred.argtypes:
+                        if value in changers or value in unexpressed_changers:
+                            local_changer = value
+                        if argtype == 'ThemRole' and value not in changers and \
+                        value not in unexpressed_changers:
+                            opposition = value
+                        if value == 'end(E)':
+                            is_end = True
+                        if value == 'start(E)':
+                            is_start = True
+                        if value == 'ch_of_poss' or value == 'ch_of_pos':
+                            type_of_change = "pos"
+                        if value == 'ch_of_loc' or value == 'ch_of_location':
+                            type_of_change = "loc"
+                        if value == 'ch_of_info':
+                            type_of_change = "info"
+                        if value == 'ch_of_state':
+                            type_of_change = "state"
+                    if is_start:
+                        start.append(tuple((local_changer, opposition)))
+                    if is_end:
+                        end.append(tuple((local_changer, opposition)))
+                if pred.value[0] == 'equals':
+                    equals.append(tuple(value for argtype, value in pred.argtypes))
+            
+            if type_of_change != 'info':
+                for changer, opposition in start:
+                    final_opp = opposition
+                    if len(equals) > 0:
+                        for pair in equals:
+                            if pair[0] == opposition:
+                                final_opp = pair[1]
+                            elif pair[1] == opposition:
+                                final_opp = pair[0]
+                    print changer, final_opp, self.vnframe.class_ID
+                    try:
+                        changer_var = member_vars[changer]
+                    except KeyError:
+                        changer_var = changer
+                    try: 
+                        opp_var = member_vars[final_opp]
+                    except KeyError:
+                        opp_var = final_opp
+                    initial_states.append(State(changer_var, opp_var))
+                for changer, opposition in end:
+                    final_opp = opposition
+                    if len(equals) > 0:
+                        for pair in equals:
+                            if pair[0] == opposition:
+                                final_opp = pair[1]
+                            elif pair[1] == opposition:
+                                final_opp = pair[0]
+                    print changer, final_opp, self.vnframe.class_ID
+                    try:
+                        changer_var = member_vars[changer]
+                    except KeyError:
+                        changer_var = changer
+                    try: 
+                        opp_var = member_vars[final_opp]
+                    except KeyError:
+                        opp_var = final_opp
+                    final_states.append(State(changer_var, opp_var))
+            
+        opposition = Opposition(type_of_change, initial_states, final_states)
+        self.event_structure = EventStructure(initial_states, final_states)
+        self.qualia = Qualia(pred_type, opposition)
     
     def __repr__(self):
         output = "\n\n{ description = " + str(" ".join(self.pri_description)) + \
@@ -277,31 +381,32 @@ class SubcatMember(object):
 class State(object):
     """Represents a state in the event structure
     For motion verbs, this gives the variable assignment of the mover, and its
-    location"""
+    location. For transfer verbs, this gives the variable assignment of the 
+    object being transferred, and what currently owns the object"""
     
-    def __init__(self, obj_var, loc_var):
+    def __init__(self, obj_var, pos_var):
         self.object_var = obj_var
-        self.location = loc_var
+        self.position = pos_var
         
     def __repr__(self):
-        loc = self.location
-        return "{ objects." + str(self.object_var) + ".location = " + str(loc) + " }"
+        return "{ objects." + str(self.object_var) + ".location = " + \
+                str(self.position) + " }"
 
 
 class EventStructure(object):
     """Defines the event structure for a particular frame of a verb"""
     
-    def __init__(self, initial_state, final_state):
+    def __init__(self, initial_states, final_states):
         self.var = "e"
         self.states = "To Be Determined"
-        self.initial_state = initial_state
-        self.final_state = final_state
+        self.initial_states = initial_states
+        self.final_states = final_states
         self.program = "To Be Determined"
      
     def __repr__(self):
         output = "\n\tvar = " + str(self.var) + "\n\tinitial_state = " + \
-                 str(self.initial_state) + "\n\tfinal_ state = " + \
-                 str(self.final_state) + "\n\tprogram = " + str(self.program)
+                 str(self.initial_states) + "\n\tfinal_ state = " + \
+                 str(self.final_states) + "\n\tprogram = " + str(self.program)
         return output
 
 
@@ -309,27 +414,30 @@ class Opposition(object):
     """Represents the opposition structure of the frame
     Right now only tailored for locations"""
     
-    def __init__(self, initial_state, final_state):
-        self.initial_state = initial_state
-        self.final_state = final_state
+    def __init__(self, type_of_change, initial_states, final_states):
+        self.type_of_change = type_of_change
+        self.initial_states = initial_states
+        self.final_states = final_states
         
     def __repr__(self):
-        if self.initial_state.location:
-            return "(At(" + str(self.initial_state.object_var) + ", " + \
-                       str(self.initial_state.location) + "), At(" + \
-                       str(self.final_state.object_var) + ", " + \
-                       str(self.final_state.location) + ")) "
-        else:
-            return "(At(" + str(self.initial_state.object_var) + ", ?), At(" + \
-                       str(self.final_state.object_var) + ", -?)) "
+        return str(self.initial_states) + str(self.final_states)
+        
+        #if self.initial_state.position:
+        #    return "(At(" + str(self.initial_state.object_var) + ", " + \
+        #               str(self.initial_state.position) + "), At(" + \
+        #               str(self.final_state.object_var) + ", " + \
+        #               str(self.final_state.position) + ")) "
+        #else:
+        #    return "(At(" + str(self.initial_state.object_var) + ", ?), At(" + \
+        #               str(self.final_state.object_var) + ", -?)) "
 
     
 class Qualia(object):
     """Represents the qualia structure of a verbframe, including opposition
     structure"""
     
-    def __init__(self, predicate, opposition):
-        self.formal = predicate.value[0]
+    def __init__(self, pred_type, opposition):
+        self.formal = pred_type
         self.opposition = opposition
         
     def __repr__(self):
@@ -342,9 +450,10 @@ def search2(verbclasslist, pred_type=None, themroles=None, synroles=None, semrol
     successes = []
     for vc in verbclasslist:
         for frame in vc.frames:
-            if frame.qualia.formal == pred_type:
-                if vc not in successes:
-                    successes.append(vc)
+            for pred in frame.vnframe.predicates:
+                if pred.value[0] == pred_type:
+                    if vc not in successes:
+                        successes.append(vc)
     return successes
 
 
@@ -373,5 +482,32 @@ if __name__ == '__main__':
     vngl = [GLVerbClass(vc) for vc in vnp.verb_classes]
     results = search2(vngl, "motion")
     print len(results)
-    print vngl[269]
-    pp_html(results)
+    print vngl[269] #slide
+    #pp_html(results)
+    possession_results = search2(vngl, "has_possession")
+    print len(possession_results)
+    for vc in possession_results:
+        print vc.ID
+    #for vc in vngl:
+    #    if vc.ID == "give-13.1":
+    #        print vc
+    # find all 'ch_of_' predicate argument types
+    results2 = []
+    for vc in vngl:
+        for frame in vc.frames:
+            for pred in frame.vnframe.predicates:
+                for arg, arg_type in pred.argtypes:
+                    if 'ch_of_' in arg_type:
+                        if arg_type not in results2:
+                            results2.append(arg_type)
+    print results2
+    # find all "ch_of_info" verb classes
+    results3 = []
+    for vc in vngl:
+        for frame in vc.frames:
+            for pred in frame.vnframe.predicates:
+                for arg, arg_type in pred.argtypes:
+                    if 'ch_of_info' in arg_type:
+                        if vc.ID not in results3:
+                            results3.append(vc.ID)
+    print results3
