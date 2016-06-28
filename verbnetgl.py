@@ -472,7 +472,40 @@ def search2(verbclasslist, pred_type=None, themroles=None, synroles=None, semrol
                         successes.append(vc)
     return successes
 
+def search_by_argtype(verbclasslist, argtype, contains=False):
+    """Returns verbclass IDs that have predicates that contain the argtype.
+    Optional variable to allow for searching to see if the argtype contains a 
+    string"""
+    results = []
+    for vc in verbclasslist:
+        for frame in vc.frames:
+            for pred in frame.vnframe.predicates:
+                for arg, arg_type in pred.argtypes:
+                    if not contains:
+                        if argtype == arg_type:
+                            if vc.ID not in results:
+                                results.append(vc.ID)
+                    else:
+                        if argtype in arg_type:
+                            if vc.ID not in results:
+                                results.append(vc.ID)
+    return results
 
+def search_by_ID(verbclasslist, ID, contains=False):
+    """Returns verbclasses with a given ID name.
+    Optional variable to allow for searching to see if the argtype contains a 
+    string. Returns a list in case multiple classes have that ID/string"""
+    results = []
+    for vc in verbclasslist:
+        if not contains:
+            if ID == vc.ID:
+                results.append(vc)
+        else:
+            if ID in vc.ID:
+                results.append(vc)
+    return results
+            
+    
 def pp_html(results):
     INDEX = open('html/index.html', 'w')
     INDEX.write("<html>\n")
@@ -496,34 +529,38 @@ if __name__ == '__main__':
     
     vnp = VerbNetParser()
     vngl = [GLVerbClass(vc) for vc in vnp.verb_classes]
-    results = search2(vngl, "motion")
-    print len(results)
+    motion_results = search2(vngl, "motion")
+    transfer_results = search2(vngl, "transfer")
+    print len(motion_results), len(transfer_results)
+    results = motion_results + transfer_results
     #print vngl[269] #slide
     pp_html(results)
     possession_results = search2(vngl, "has_possession")
     print len(possession_results)
     for vc in possession_results:
         print vc.ID
-    for vc in vngl:
-        if vc.ID == "give-13.1":
-            print vc
-    # find all 'ch_of_' predicate argument types
-    results2 = []
-    for vc in vngl:
-        for frame in vc.frames:
-            for pred in frame.vnframe.predicates:
-                for arg, arg_type in pred.argtypes:
-                    if 'ch_of_' in arg_type:
-                        if arg_type not in results2:
-                            results2.append(arg_type)
-    print results2
-    # find all "ch_of_info" verb classes
-    results3 = []
-    for vc in vngl:
-        for frame in vc.frames:
-            for pred in frame.vnframe.predicates:
-                for arg, arg_type in pred.argtypes:
-                    if 'ch_of_info' in arg_type:
-                        if vc.ID not in results3:
-                            results3.append(vc.ID)
-    print results3
+    # find all 'ch_of_' verb classes
+    ch_of_results = search_by_argtype(vngl, 'ch_of_', True)
+    print '\nch_of_\n', ch_of_results, len(ch_of_results)
+    results = search_by_argtype(vngl, 'ch_of_info')
+    print '\nch_of_info\n', results, len(results)
+    results = search_by_argtype(vngl, 'ch_of_pos')
+    print '\nch_of_pos\n', results, len(results)
+    results = search_by_argtype(vngl, 'ch_of_poss')
+    print '\nch_of_poss\n', results, len(results)
+    results = search_by_argtype(vngl, 'ch_of_state')
+    print '\nch_of_state\n', results, len(results)
+    results = search_by_argtype(vngl, 'ch_of_loc')
+    print '\nch_of_loc\n', results, len(results)
+    results = search_by_argtype(vngl, 'ch_of_location')
+    print '\nch_of_location\n', results, len(results)
+    # give
+    #print search_by_ID(vngl, 'give', True)[0]
+    # transfer possession verbs
+    transpos = search_by_argtype(transfer_results, 'ch_of_pos', True)
+    print '\nTransfer Possession:\n', transpos, len(transpos)
+    path_rel_results = search2(vngl, "path_rel")
+    print '\nNumber of path_rel classes:\n', len(path_rel_results)
+    path_less_ch = [vc.ID for vc in path_rel_results if vc.ID not in ch_of_results]
+    print '\npath_rel classes with no ch_of\n', path_less_ch
+    

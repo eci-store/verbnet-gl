@@ -20,6 +20,7 @@ class PredicateStatistics(object):
         self.motion_check = self.check_classes("motion")
         self.cause_check = self.check_classes("cause")
         self.pathrel_check = self.check_classes("path_rel")
+        self.transfer_check = self.check_classes("transfer")
         
     def collect_predicates(self):
         """Gather the count of all predicates in the list of GLVerbClasses"""
@@ -107,9 +108,16 @@ if __name__ == '__main__':
     print "\nClasses without all frames containing motion: ", stats.motion_check
     print "\nClasses without all frames containing cause: ", stats.cause_check
     print "\nClasses without all frames containing path_rel: ", stats.pathrel_check
+    print "\nClasses without all frames containing transfer: ", stats.transfer_check
     motion_classes = [vc.ID for vc in search2(vngl, "motion")]
     print "\nAll motion classes: ", motion_classes
     print "\nNumber of motion classes: ", len(motion_classes)
     motion_frames = stats.pred_search_by_frame(vngl, "motion")
     print "\nAll motion frames: ", motion_frames
     print "\nNumber of motion frames: ", len(motion_frames)
+    transfer_classes = [vc.ID for vc in search2(vngl, "transfer")]
+    print "\nAll transfer classes: ", transfer_classes
+    print "\nNumber of transfer classes: ", len(transfer_classes)
+    transfer_frames = stats.pred_search_by_frame(vngl, "transfer")
+    print "\nAll transfer frames: ", transfer_frames
+    print "\nNumber of transfer frames: ", len(transfer_frames)
