@@ -263,15 +263,22 @@ class GLFrame(object):
         start = []
         end = []
         for pred in self.vnframe.predicates:
-            if pred.value[0] == 'motion' or pred.value[0] == 'transfer':
+            if pred.value[0] in ['motion', 'transfer', 'cause', 'transfer_info', \
+                'adjust', 'emotional_state', 'location', 'state', 'wear']:
                 pred_type = pred.value[0]
                     
         if pred_type:
             equals = []
             for pred in self.vnframe.predicates:
-                if pred.value[0] == 'path_rel':       
-                    changer = pred.argtypes[1][1]       # object that changes
-                    opposition = pred.argtypes[2][1]    # where the object is or who owns it
+                if pred.value[0] == 'path_rel': 
+                    # check to see where the object that changes is,
+                    # and where that object is or who owns it
+                    if pred.argtypes[1][1] in member_vars.keys():
+                        changer = pred.argtypes[1][1]       # object that changes
+                        opposition = pred.argtypes[2][1]    # where the object is or who owns it
+                    else:
+                        changer = pred.argtypes[2][1]       # object that changes
+                        opposition = pred.argtypes[1][1]
                     if pred.argtypes[3][1] == 'ch_of_poss' or pred.argtypes[3][1] == 'ch_of_pos':
                         type_of_change = "pos"
                     if pred.argtypes[3][1] == 'ch_of_loc' or pred.argtypes[3][1] == 'ch_of_location':
@@ -406,6 +413,7 @@ class State(object):
         self.position = pos_var
         
     def __repr__(self):
+        opp = 'location'
         return "{ objects." + str(self.object_var) + ".location = " + \
                 str(self.position) + " }"
 
@@ -440,6 +448,10 @@ class Opposition(object):
         opp = "At"
         if self.type_of_change == 'pos':
             opp = 'Has'
+        if self.type_of_change == 'info':
+            opp = 'Knows'
+        if self.type_of_change == 'state':
+            opp = 'State'
         for start, end in self.states:
             output += "(" + opp + "(" + str(start.object_var) + ", " + \
                       str(start.position) + "), " + opp + "(" + \
@@ -504,7 +516,80 @@ def search_by_ID(verbclasslist, ID, contains=False):
             if ID in vc.ID:
                 results.append(vc)
     return results
-            
+
+def search_by_themroles(verbclasslist, themroles, only=False):
+    """Returns verbclasses that contain specified thematic roles.
+    Only returns classes that contain every role in the list, with the option
+    to only return classes that contain all and only those roles."""
+    results = []
+    nocase_themroles = [themrole.lower() for themrole in themroles]
+    for vc in verbclasslist:
+        out = False
+        for themrole in vc.roles:
+            if themrole.role_type.lower() not in nocase_themroles:
+                out = True
+        if not out:
+            if only:
+                if len(themroles) == len(vc.roles):
+                    results.append(vc)
+            else:
+                results.append(vc)
+    return results
+                
+
+def search_by_POS(verbclasslist, POS_list, only=False):
+    """Returns frames (and their verbclass's ID) that contain specified syntactic roles.
+    Only returns frames that contain every role in the list, with the option
+    to only return frames that contain all and only those roles.
+    
+    TODO: consider ordering and differentiating between classes with 1 NP vs 2, 
+    etc."""
+    results = []
+    nocase_pos = [POS.lower() for POS in POS_list]
+    for vc in verbclasslist:
+        for frame in vc.frames:
+            out = False
+            for member in frame.subcat:
+                if member.cat.lower() not in nocase_pos:
+                    out = True
+            if not out:
+                if only:
+                    if len(POS_list) == len(frame.subcat):
+                        results.append((frame, vc.ID))
+                else:
+                    results.append((frame, vc.ID))
+    return results
+
+def search_by_cat_and_role(verbclasslist, cat_role_tuples, only=False):
+    """Returns frames (and their verbclass's ID) that contain specified syntactic 
+    roles (POS), where those roles have a specific semantic category (Agent, etc.)
+    Only returns frames that contain every role in the list, with the option
+    to only return frames that contain all and only those cat/roles combinations."""
+    results = []
+    nocase_tuples = [(unicode(POS.lower(), "utf-8"), unicode(role.lower(), "utf-8"))\
+                    for POS,role in cat_role_tuples]
+    for vc in verbclasslist:
+        for frame in vc.frames:
+            out = False
+            for targetcat, targetrole in nocase_tuples:
+                inner_loop = False
+                for member in frame.subcat:
+                    cat = unicode(member.cat.lower(), "utf-8")
+                    role = unicode('none', "utf-8")
+                    if len(member.role) != 0:
+                        role = member.role[0].lower().encode('utf-8')
+                    if cat == targetcat:
+                        if role == targetrole:
+                            inner_loop = True
+                if not inner_loop:
+                    out = True
+            if not out:
+                if only:
+                    if len(cat_role_tuples) == len(frame.subcat):
+                        results.append((frame, vc.ID))
+                else:
+                    results.append((frame, vc.ID))
+    return results
     
 def pp_html(results):
     INDEX = open('html/index.html', 'w')
@@ -514,7 +599,7 @@ def pp_html(results):
     INDEX.write("</head>\n")
     INDEX.write("<body>\n")
     INDEX.write("<table cellpadding=8 cellspacing=0>\n")
-    INDEX.write("<tr class=header><td>VN Motion Classes</a>\n")
+    INDEX.write("<tr class=header><td>VN Ch_of_ Classes</a>\n")
     for result in results:
         class_file = "vnclass-%s.html" % result.ID
         INDEX.write("<tr class=vnlink><td><a href=\"%s\">%s</a>\n" % (class_file, result.ID))
@@ -531,10 +616,20 @@ if __name__ == '__main__':
     vngl = [GLVerbClass(vc) for vc in vnp.verb_classes]
     motion_results = search2(vngl, "motion")
     transfer_results = search2(vngl, "transfer")
+    adjust_results = search2(vngl, "adjust")
+    cause_results = search2(vngl, "cause")
+    transfer_info_results = search2(vngl, "transfer_info")
+    emotional_state_results = search2(vngl, "emotional_state")
+    location_results = search2(vngl, "location")
+    state_results = search2(vngl, "state")
+    wear_results = search2(vngl, "wear")
     print len(motion_results), len(transfer_results)
     results = motion_results + transfer_results
+    all_results = results + adjust_results + cause_results + transfer_info_results +\
+                  emotional_state_results + location_results + state_results +\
+                  wear_results
     #print vngl[269] #slide
-    pp_html(results)
+    pp_html(sorted(set(all_results)))
     possession_results = search2(vngl, "has_possession")
     print len(possession_results)
     for vc in possession_results:
@@ -564,3 +659,25 @@ if __name__ == '__main__':
     path_less_ch = [vc.ID for vc in path_rel_results if vc.ID not in ch_of_results]
     print '\npath_rel classes with no ch_of\n', path_less_ch
     
+    # test new searches
+    print "\n\nVerbclasses with Agent and Patient thematic roles:"
+    them_results = search_by_themroles(vngl, ['Agent', 'Patient'])
+    print '\n', [vc.ID for vc in them_results], '\n', len(them_results)
+    them_results2 = search_by_themroles(vngl, ['Agent', 'Patient'], True)
+    print '\nAgent and Patient only classes:\n\n', [vc.ID for vc in them_results2]
+    print len(them_results2)
+    print "\n\nVerbclasses with frames with NP and VERB syntactic roles:"
+    pos_results = search_by_POS(vngl, ['NP', 'VERB'])
+    print '\n', len(pos_results)
+    pos_results2 = search_by_POS(vngl, ['NP', 'VERB'], True)
+    print '\nNP and VERB only classes:\n\n', [ID for frame,ID in pos_results2]
+    print len(pos_results2)
+    print "\n\nVerbclasses with frames with (NP, Agent) subcat members:"
+    catrole_results = search_by_cat_and_role(vngl, [('NP', 'Agent')] )
+    print '\n', len(catrole_results)
+    catrole_results2 = search_by_cat_and_role(vngl, [('NP', 'Agent'), ('PREP', 'None')] )
+    print '\n(NP, Agent) and (PREP, None) classes:\n\n', [ID for frame,ID in catrole_results2]
+    print len(catrole_results2)
+    catrole_results3 = search_by_cat_and_role(vngl, [('NP', 'Agent'), ('VERB', 'None')], True )
+    print '\n(NP, Agent) and (VERB, None) only classes:\n\n', [ID for frame,ID in catrole_results3]
+    print len(catrole_results3)
