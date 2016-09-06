@@ -5,6 +5,7 @@ given a VerbClass from verbnetparser.py
 """
 
 from verbnetparser import VerbNetParser
+from imageschema import *
 
 class GLVerbClass(object):
     """VerbClass analogue, with an update mostly to frames"""
@@ -591,7 +592,7 @@ def search_by_cat_and_role(verbclasslist, cat_role_tuples, only=False):
                     results.append((frame, vc.ID))
     return results
 
-def image_schema_search(verbclasslist, pp_list, sem_list=None):
+def image_schema_search2(verbclasslist, pp_list, sem_list=None):
     """TODO: Try to find verb classes using image schema"""
     round_1 = set()
     for vc in verbclasslist:
@@ -613,6 +614,54 @@ def image_schema_search(verbclasslist, pp_list, sem_list=None):
                         if rol in sem_list:
                             round_2.add((frame, vc_id))
     return sorted(round_2)
+
+def image_schema_search(verbclasslist, scheme, second_round=True, inclusive=False):
+    """Use an ImageScheme object to find verb frames that match the scheme
+    Optionally allows to make thematic roles inclusive (search results can return
+    verb classes that only have a thematic role, as opposed to requiring a prep
+    or selectional restriction)
+    Optional second round to narrow search results to include only those verb
+    classes that contain the elements from the list of thematic roles"""
+    results = set()
+    for vc in verbclasslist:
+        frame_and_id_list = [(frame, vc.ID) for frame in vc.frames]
+        for subclass in vc.subclasses:
+            sub_frames = recursive_frames(subclass)
+            frame_and_id_list.extend(sub_frames)
+        for frame,ID in frame_and_id_list:
+            for member in frame.subcat:
+                if member.cat == "PREP":
+                    if len(member.role) > 0:
+                        if member.role[0] in scheme.pp_list:
+                            results.add((frame, ID))
+                    if len(member.sel_res) > 0:
+                        for res in member.sel_res:
+                            if res in scheme.sel_res_list:
+                                results.add((frame, ID))
+                if inclusive:
+                    if len(member.role) > 0:
+                        if member.role[0] in scheme.role_list:
+                            results.add((frame, ID))
+    if len(scheme.role_list) > 0:
+        if second_round:
+            round_2 = set()
+            for frame,ID in results:
+                for member in frame.subcat:
+                    if len(member.role) > 0:
+                        if member.role[0] in scheme.role_list:
+                            round_2.add((frame, ID))
+            return sorted(round_2)
+    return sorted(results)
+            
+def recursive_frames(subclass):
+    frame_and_ids = [(frame, subclass.ID) for frame in subclass.frames]
+    if len(subclass.subclasses) == 0:
+        return frame_and_ids
+    else:
+        for subc in subclass.subclasses:
+            frame_and_ids.extend(recursive_frames(subc))
+        return frame_and_ids
+    
 
 def pp_html(results):
     INDEX = open('html/index.html', 'w')
@@ -637,6 +686,8 @@ if __name__ == '__main__':
     
     vnp = VerbNetParser()
     vngl = [GLVerbClass(vc) for vc in vnp.verb_classes]
+    print vngl[269] #slide
+    
     motion_results = search2(vngl, "motion")
     transfer_results = search2(vngl, "transfer")
     adjust_results = search2(vngl, "adjust")
@@ -651,27 +702,27 @@ if __name__ == '__main__':
     all_results = results + adjust_results + cause_results + transfer_info_results +\
                   emotional_state_results + location_results + state_results +\
                   wear_results
-    print vngl[269] #slide
     pp_html(sorted(set(all_results)))
     possession_results = search2(vngl, "has_possession")
     print len(possession_results)
     for vc in possession_results:
         print vc.ID
     # find all 'ch_of_' verb classes
-#    ch_of_results = search_by_argtype(vngl, 'ch_of_', True)
-#    print '\nch_of_\n', ch_of_results, len(ch_of_results)
-#    results = search_by_argtype(vngl, 'ch_of_info')
-#    print '\nch_of_info\n', results, len(results)
-#    results = search_by_argtype(vngl, 'ch_of_pos')
-#    print '\nch_of_pos\n', results, len(results)
-#    results = search_by_argtype(vngl, 'ch_of_poss')
-#    print '\nch_of_poss\n', results, len(results)
-#    results = search_by_argtype(vngl, 'ch_of_state')
-#    print '\nch_of_state\n', results, len(results)
-#    results = search_by_argtype(vngl, 'ch_of_loc')
-#    print '\nch_of_loc\n', results, len(results)
-#    results = search_by_argtype(vngl, 'ch_of_location')
-#    print '\nch_of_location\n', results, len(results)
+    def ch_of_searches():
+        ch_of_results = search_by_argtype(vngl, 'ch_of_', True)
+        print '\nch_of_\n', ch_of_results, len(ch_of_results)
+        results = search_by_argtype(vngl, 'ch_of_info')
+        print '\nch_of_info\n', results, len(results)
+        results = search_by_argtype(vngl, 'ch_of_pos')
+        print '\nch_of_pos\n', results, len(results)
+        results = search_by_argtype(vngl, 'ch_of_poss')
+        print '\nch_of_poss\n', results, len(results)
+        results = search_by_argtype(vngl, 'ch_of_state')
+        print '\nch_of_state\n', results, len(results)
+        results = search_by_argtype(vngl, 'ch_of_loc')
+        print '\nch_of_loc\n', results, len(results)
+        results = search_by_argtype(vngl, 'ch_of_location')
+        print '\nch_of_location\n', results, len(results)
     # give
     #print search_by_ID(vngl, 'give', True)[0]
     # transfer possession verbs
@@ -683,64 +734,75 @@ if __name__ == '__main__':
 #    print '\npath_rel classes with no ch_of\n', path_less_ch
     
     # test new searches
-#    print "\n\nVerbclasses with Agent and Patient thematic roles:"
-#    them_results = search_by_themroles(vngl, ['Agent', 'Patient'])
-#    print '\n', [vc.ID for vc in them_results], '\n', len(them_results)
-#    them_results2 = search_by_themroles(vngl, ['Agent', 'Patient'], True)
-#    print '\nAgent and Patient only classes:\n\n', [vc.ID for vc in them_results2]
-#    print len(them_results2)
-#    print "\n\nVerbclasses with frames with NP and VERB syntactic roles:"
-#    pos_results = search_by_POS(vngl, ['NP', 'VERB'])
-#    print '\n', len(pos_results)
-#    pos_results2 = search_by_POS(vngl, ['NP', 'VERB'], True)
-#    print '\nNP and VERB only classes:\n\n', [ID for frame,ID in pos_results2]
-#    print len(pos_results2)
-#    print "\n\nVerbclasses with frames with (NP, Agent) subcat members:"
-#    catrole_results = search_by_cat_and_role(vngl, [('NP', 'Agent')] )
-#    print '\n', len(catrole_results)
-#    catrole_results2 = search_by_cat_and_role(vngl, [('NP', 'Agent'), ('PREP', 'None')] )
-#    print '\n(NP, Agent) and (PREP, None) classes:\n\n', [ID for frame,ID in catrole_results2]
-#    print len(catrole_results2)
-#    catrole_results3 = search_by_cat_and_role(vngl, [('NP', 'Agent'), ('VERB', 'None')], True )
-#    print '\n(NP, Agent) and (VERB, None) only classes:\n\n', [ID for frame,ID in catrole_results3]
-#    print len(catrole_results3)
+    def new_searches():
+        print "\n\nVerbclasses with Agent and Patient thematic roles:"
+        them_results = search_by_themroles(vngl, ['Agent', 'Patient'])
+        print '\n', [vc.ID for vc in them_results], '\n', len(them_results)
+        them_results2 = search_by_themroles(vngl, ['Agent', 'Patient'], True)
+        print '\nAgent and Patient only classes:\n\n', [vc.ID for vc in them_results2]
+        print len(them_results2)
+        print "\n\nVerbclasses with frames with NP and VERB syntactic roles:"
+        pos_results = search_by_POS(vngl, ['NP', 'VERB'])
+        print '\n', len(pos_results)
+        pos_results2 = search_by_POS(vngl, ['NP', 'VERB'], True)
+        print '\nNP and VERB only classes:\n\n', [ID for frame,ID in pos_results2]
+        print len(pos_results2)
+        print "\n\nVerbclasses with frames with (NP, Agent) subcat members:"
+        catrole_results = search_by_cat_and_role(vngl, [('NP', 'Agent')] )
+        print '\n', len(catrole_results)
+        catrole_results2 = search_by_cat_and_role(vngl, [('NP', 'Agent'), ('PREP', 'None')] )
+        print '\n(NP, Agent) and (PREP, None) classes:\n\n', [ID for frame,ID in catrole_results2]
+        print len(catrole_results2)
+        catrole_results3 = search_by_cat_and_role(vngl, [('NP', 'Agent'), ('VERB', 'None')], True )
+        print '\n(NP, Agent) and (VERB, None) only classes:\n\n', [ID for frame,ID in catrole_results3]
+        print len(catrole_results3)
     
     #test image schema searches
-    print "\nin at on destination:\n"
-    destination_results = image_schema_search(vngl, ['in', 'at', 'on'], ['Destination'])
-    print [vcid for frame,vcid in destination_results], len(destination_results)
-    print "\nin at on location:\n"
-    location_results = image_schema_search(vngl, ['in', 'at', 'on'], ['Location'])
-    print [vcid for frame,vcid in location_results], len(location_results)
-    # figure out left-of right-of
-    print "\nnear far:\n"
-    nearfar_results = image_schema_search(vngl, ['near', 'far'])
-    print [vcid for frame,vcid in nearfar_results], len(nearfar_results)
-    print "\nup-down:\n"
-    updown_results = image_schema_search(vngl, ['up', 'down', 'above', 'below'])
-    print [vcid for frame,vcid in updown_results], len(updown_results)
-    print "\nContact No-Contact on in:\n"
-    contact_results = image_schema_search(vngl, ['on', 'in'])
-    print [vcid for frame,vcid in contact_results], len(contact_results)
-    print "\nFront/Behind:\n"
-    front_results = image_schema_search(vngl, ['front', 'behind'])
-    print [vcid for frame,vcid in front_results], len(front_results)
-    #figure out advs of speed
-    print "\nPath along on:\n"
-    path_results = image_schema_search(vngl, ['along', 'on'])
-    print [vcid for frame,vcid in path_results], len(path_results)
-    print "\nSource from:\n"
-    source_results = image_schema_search(vngl, ['from'], ['Initial_Location'])
-    print [vcid for frame,vcid in source_results], len(source_results)
-    print "\nEnd at to:\n"
-    end_results = image_schema_search(vngl, ['at', 'to'], ['Destination'])
-    print [vcid for frame,vcid in end_results], len(end_results)
-    print "\nDirectional toward away for:\n"
-    directional_results = image_schema_search(vngl, ['toward', 'away', 'for'], ['Source'])
-    print [vcid for frame,vcid in directional_results], len(directional_results)
-    print "\nContainer in inside:\n"
-    container_results = image_schema_search(vngl, ['in', 'inside'])
-    print [vcid for frame,vcid in container_results], len(container_results)
-    print "\nSurface over on:\n"
-    surface_results = image_schema_search(vngl, ['over', 'on'])
-    print [vcid for frame,vcid in surface_results], len(surface_results)
+    def image_searches():
+        print "\nin at on destination:\n"
+        destination_results = image_schema_search2(vngl, ['in', 'at', 'on'], ['Destination'])
+        print [vcid for frame,vcid in destination_results], len(destination_results)
+        print "\nin at on location:\n"
+        location_results = image_schema_search2(vngl, ['in', 'at', 'on'], ['Location'])
+        print [vcid for frame,vcid in location_results], len(location_results)
+        # figure out left-of right-of
+        print "\nnear far:\n"
+        nearfar_results = image_schema_search2(vngl, ['near', 'far'])
+        print [vcid for frame,vcid in nearfar_results], len(nearfar_results)
+        print "\nup-down:\n"
+        updown_results = image_schema_search2(vngl, ['up', 'down', 'above', 'below'])
+        print [vcid for frame,vcid in updown_results], len(updown_results)
+        print "\nContact No-Contact on in:\n"
+        contact_results = image_schema_search2(vngl, ['on', 'in'])
+        print [vcid for frame,vcid in contact_results], len(contact_results)
+        print "\nFront/Behind:\n"
+        front_results = image_schema_search2(vngl, ['front', 'behind'])
+        print [vcid for frame,vcid in front_results], len(front_results)
+        #figure out advs of speed
+        print "\nPath along on:\n"
+        path_results = image_schema_search2(vngl, ['along', 'on'])
+        print [vcid for frame,vcid in path_results], len(path_results)
+        print "\nSource from:\n"
+        source_results = image_schema_search2(vngl, ['from'], ['Initial_Location'])
+        print [vcid for frame,vcid in source_results], len(source_results)
+        print "\nEnd at to:\n"
+        end_results = image_schema_search2(vngl, ['at', 'to'], ['Destination'])
+        print [vcid for frame,vcid in end_results], len(end_results)
+        print "\nDirectional toward away for:\n"
+        directional_results = image_schema_search2(vngl, ['toward', 'away', 'for'], ['Source'])
+        print [vcid for frame,vcid in directional_results], len(directional_results)
+        print "\nContainer in inside:\n"
+        container_results = image_schema_search2(vngl, ['in', 'inside'])
+        print [vcid for frame,vcid in container_results], len(container_results)
+        print "\nSurface over on:\n"
+        surface_results = image_schema_search2(vngl, ['over', 'on'])
+        print [vcid for frame,vcid in surface_results], len(surface_results)
+        
+    def new_image_searches():
+        
+        for scheme in SCHEME_LIST:
+            results = image_schema_search(vngl, scheme)
+            print "\n", scheme, "\nResults - " + str(len(results)) + " Frames:"
+            print [vcid for frame,vcid in results]
+        
+    new_image_searches()
