@@ -101,7 +101,27 @@ class GLVerbClass(object):
         fh.write("  <td>var = %s<br>\n" % gl_frame.event_structure.var)
         fh.write("      initial_states = %s<br>\n" % gl_frame.event_structure.initial_states)
         fh.write("      final_states = %s\n" % gl_frame.event_structure.final_states)
-            
+    
+    def pp_image_html(self, fh, frame_numbers):
+        fh.write("<html>\n")
+        fh.write("<head>\n")
+        fh.write("<link rel=\"stylesheet\" type=\"text/css\" href=\"style.css\">\n")
+        fh.write("</head>\n")
+        fh.write("<body>\n")
+        fh.write("\n<h1>%s</h1>\n" % str(self.ID))
+        for i in frame_numbers:
+            vn_frame = self.verbclass.frames[i]
+            gl_frame = self.frames[i]
+            fh.write("\n<table cellpadding=8 cellspacing=0 border=0 width=1000>\n")
+            fh.write("<tr class=header><td>Frame %s:</a>\n" % i)
+            self.pp_html_description(gl_frame, fh)
+            self.pp_html_example(gl_frame, fh)
+            self.pp_html_predicate(vn_frame, fh)
+            self.pp_html_subcat(gl_frame, fh)
+            self.pp_html_qualia(gl_frame, fh)
+            self.pp_html_event(gl_frame, fh)
+            fh.write("</table>\n\n")
+    
     def __repr__(self):
         return str(self.ID) + " = {\n\nroles = " + str(self.roles) + \
                "\n\nframes = " + str(self.frames) + "\n}" + \
@@ -508,15 +528,36 @@ def search_by_ID(verbclasslist, ID, contains=False):
     """Returns verbclasses with a given ID name.
     Optional variable to allow for searching to see if the argtype contains a 
     string. Returns a list in case multiple classes have that ID/string"""
-    results = []
     for vc in verbclasslist:
         if not contains:
             if ID == vc.ID:
-                results.append(vc)
+                return vc
+            else:
+                if len(vc.subclasses) > 0:
+                    for subclass in vc.subclasses:
+                        result = search_by_subclass_ID(subclass, ID)
+                        if result is not None:
+                            return result
         else:
             if ID in vc.ID:
-                results.append(vc)
-    return results
+                return vc
+    return None
+
+def search_by_subclass_ID(subclass, ID):
+    """Recursive search through subclasses to see if any match ID specified"""
+    if subclass.ID == ID:
+        return subclass
+    if len(subclass.subclasses) == 0:
+        if subclass.ID == ID:
+            return subclass
+        else:
+            return None
+    else:
+        for subc in subclass.subclasses:
+            result = search_by_subclass_ID(subc, ID)
+            if result is not None:
+                return result
+        return None
 
 def search_by_themroles(verbclasslist, themroles, only=False):
     """Returns verbclasses that contain specified thematic roles.
@@ -622,39 +663,50 @@ def image_schema_search(verbclasslist, scheme, second_round=True, inclusive=Fals
     or selectional restriction)
     Optional second round to narrow search results to include only those verb
     classes that contain the elements from the list of thematic roles"""
-    results = set()
+    results = []
     for vc in verbclasslist:
-        frame_and_id_list = [(frame, vc.ID) for frame in vc.frames]
+        result = set()
+        frame_and_id_list = []
+        for i in range(len(vc.frames)):
+            frame_and_id_list.append((vc.frames[i], i, vc.ID))
         for subclass in vc.subclasses:
             sub_frames = recursive_frames(subclass)
             frame_and_id_list.extend(sub_frames)
-        for frame,ID in frame_and_id_list:
+        for frame,frame_num,ID in frame_and_id_list:
             for member in frame.subcat:
                 if member.cat == "PREP":
                     if len(member.role) > 0:
                         if member.role[0] in scheme.pp_list:
-                            results.add((frame, ID))
+                            result.add((frame, frame_num, ID))
                     if len(member.sel_res) > 0:
                         for res in member.sel_res:
                             if res in scheme.sel_res_list:
-                                results.add((frame, ID))
+                                result.add((frame, frame_num, ID))
                 if inclusive:
                     if len(member.role) > 0:
                         if member.role[0] in scheme.role_list:
-                            results.add((frame, ID))
+                            result.add((frame, frame_num, ID))
+        if len(result) > 0:
+            results.append((vc.ID, result))
     if len(scheme.role_list) > 0:
         if second_round:
-            round_2 = set()
-            for frame,ID in results:
-                for member in frame.subcat:
-                    if len(member.role) > 0:
-                        if member.role[0] in scheme.role_list:
-                            round_2.add((frame, ID))
+            round_2 = []
+            for vc_id, class_results in results:
+                result = set()
+                for frame,frame_num,ID in class_results:
+                    for member in frame.subcat:
+                        if len(member.role) > 0:
+                            if member.role[0] in scheme.role_list:
+                                result.add((frame, frame_num, ID))
+                if len(result) > 0:
+                    round_2.append((vc_id, result))
             return sorted(round_2)
     return sorted(results)
             
 def recursive_frames(subclass):
-    frame_and_ids = [(frame, subclass.ID) for frame in subclass.frames]
+    frame_and_ids = []
+    for i in range(len(subclass.frames)):
+        frame_and_ids.append((subclass.frames[i], i, subclass.ID))
     if len(subclass.subclasses) == 0:
         return frame_and_ids
     else:
@@ -662,6 +714,34 @@ def recursive_frames(subclass):
             frame_and_ids.extend(recursive_frames(subc))
         return frame_and_ids
     
+def reverse_image_search(frame, scheme, obligatory_theme=True, theme_only=False):
+    """Checks to see if a particular frame belongs to an image schema
+    Optionally allows to make the check for agreement on thematic roles
+    obligatory.
+    Also optionally allows for the search to return true if the frame only matches
+    a thematic role"""
+    pp = False
+    sr = False
+    tr = False
+    for member in frame.subcat:
+        if member.cat == "PREP":
+            if len(member.role) > 0:
+                if member.role[0] in scheme.pp_list:
+                    pp = True
+            if len(member.sel_res) > 0:
+                for res in member.sel_res:
+                    if res in scheme.sel_res_list:
+                        sr = True
+        if len(member.role) > 0:
+            if member.role[0] in scheme.role_list:
+                tr = True
+    if theme_only:
+        return tr
+    if obligatory_theme:
+        return (pp or sr) and tr
+    else:
+        return (pp or sr)
+        
 
 def pp_html(results):
     INDEX = open('html/index.html', 'w')
@@ -680,8 +760,79 @@ def pp_html(results):
     INDEX.write("</table>\n")
     INDEX.write("</body>\n")
     INDEX.write("</html>\n")
+    
+def pp_image_search_html(verbclasslist, results):
+    """Uses a list of [image_search_name, search_results]"""
+    INDEX = open('html/image_search_index.html', 'w')
+    INDEX.write("<html>\n")
+    INDEX.write("<head>\n")
+    INDEX.write("<link rel=\"stylesheet\" type=\"text/css\" href=\"style.css\">\n")
+    INDEX.write("</head>\n")
+    INDEX.write("<body>\n")
+    INDEX.write("<table cellpadding=8 cellspacing=0>\n")
+    for result in results:
+        scheme = result[0]
+        INDEX.write("<tr class=header><td>%s</a>\n" % scheme.name)
+        INDEX.write("<tr class=header><td>PP List: %s</a>\n" % scheme.pp_list)
+        INDEX.write("<tr class=header><td>Selectional Restrictions: %s</a>\n" % scheme.sel_res_list)
+        INDEX.write("<tr class=header><td>Thematic Roles: %s</a>\n" % scheme.role_list)
+        for vc_id, class_results in result[1]:
+            id_dict = {}
+            for frame,frame_num,ID in class_results:
+                results_type = []
+                for member in frame.subcat:
+                    if member.cat == "PREP":
+                        if len(member.role) > 0:
+                            if member.role[0] in scheme.pp_list:
+                                results_type.append("PP")
+                        if len(member.sel_res) > 0:
+                            for res in member.sel_res:
+                                if res in scheme.sel_res_list:
+                                    results_type.append("SR")
+                    if len(member.role) > 0:
+                        if member.role[0] in scheme.role_list:
+                            results_type.append("TR")
+                if ID in id_dict:
+                    id_dict[ID].append((frame_num, results_type))
+                else:
+                    id_dict[ID] = [(frame_num, results_type)]
+            for ID in id_dict.keys():
+                class_file = "imageresult-%s.html" % ID
+                INDEX.write("<tr class=vnlink><td><a href=\"%s\">%s</a>\n" % (class_file, ID))
+                for frame_num,results_type in sorted(id_dict[ID]):
+                    INDEX.write("<tr class=body align=center><td>\tFrame %s - Matched: %s" % (frame_num, results_type))
+                VNCLASS = open("html/%s" % class_file, 'w')
+                verbclass = search_by_ID(verbclasslist, ID)
+                verbclass.pp_image_html(VNCLASS, sorted([num for num,type in id_dict[ID]]))
+    INDEX.write("</table>\n")
+    INDEX.write("</body>\n")
+    INDEX.write("</html>\n")
 
-
+def pp_reverse_image_search_html(verbclasslist, frame_list, scheme_list):
+    """Uses a list of [image_search_name, search_results]"""
+    INDEX = open('html/image_search_reverse_index.html', 'w')
+    INDEX.write("<html>\n")
+    INDEX.write("<head>\n")
+    INDEX.write("<link rel=\"stylesheet\" type=\"text/css\" href=\"style.css\">\n")
+    INDEX.write("</head>\n")
+    INDEX.write("<body>\n")
+    INDEX.write("<table cellpadding=8 cellspacing=0>\n")
+    for frame,frame_num,ID in frame_list:
+        results = []
+        for scheme in scheme_list:
+            if reverse_image_search(frame, scheme):
+                results.append(scheme.name)
+        INDEX.write("<tr class=header><td>%s - Frame %s</a>\n" % (ID, frame_num))
+        class_file = "imageresultreverse-%s.html" % ID
+        INDEX.write("<tr class=body align=center><td>\tSchemes Matched: %s" % results)
+        INDEX.write("<tr class=vnlink><td><a href=\"%s\">Link to Frame</a>\n" % class_file)
+        VNCLASS = open("html/%s" % class_file, 'w')
+        verbclass = search_by_ID(verbclasslist, ID)
+        verbclass.pp_image_html(VNCLASS, [frame_num])
+    INDEX.write("</table>\n")
+    INDEX.write("</body>\n")
+    INDEX.write("</html>\n")
+    
 if __name__ == '__main__':
     
     vnp = VerbNetParser()
@@ -797,12 +948,32 @@ if __name__ == '__main__':
         print "\nSurface over on:\n"
         surface_results = image_schema_search2(vngl, ['over', 'on'])
         print [vcid for frame,vcid in surface_results], len(surface_results)
-        
+    
     def new_image_searches():
-        
+        results = []
         for scheme in SCHEME_LIST:
-            results = image_schema_search(vngl, scheme)
-            print "\n", scheme, "\nResults - " + str(len(results)) + " Frames:"
-            print [vcid for frame,vcid in results]
-        
-    new_image_searches()
+            result = image_schema_search(vngl, scheme)
+            results.append((scheme, result))
+            #for scheme,result in results:
+            #    print "\n", scheme, "\nResults - " + str(len(result)) + " Frames:"
+            #    for vc_id, frame_results in result:
+            #        print [vcid for frame,frame_num,vcid in frame_results]
+        return results
+    
+    #print search_by_ID(vngl, "swarm-47.5.1").subclasses[1]
+    
+    def reverse_image_frame_list():
+        image_results = new_image_searches()
+        frame_list = []
+        for scheme, results in image_results:
+            for vc_id, class_results in results:
+                for frame,frame_num,ID in class_results:
+                    frame_list.append((frame, frame_num, ID))
+        return frame_list
+    
+    image_results = new_image_searches()
+    frames = reverse_image_frame_list()
+    pp_image_search_html(vngl, image_results)
+    pp_reverse_image_search_html(vngl, frames, SCHEME_LIST)
+    
+    
