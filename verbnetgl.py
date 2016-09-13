@@ -42,7 +42,7 @@ class GLVerbClass(object):
             fh.write("</table>\n\n")
 
     def pp_html_description(self, gl_frame, fh):
-        fh.write("<tr class=description>\n")
+        #fh.write("<tr class=description>\n")
         fh.write("  <td colspan=2>%s\n" % ' '.join(gl_frame.pri_description))
 
     def pp_html_example(self, gl_frame, fh):
@@ -113,7 +113,7 @@ class GLVerbClass(object):
             vn_frame = self.verbclass.frames[i]
             gl_frame = self.frames[i]
             fh.write("\n<table cellpadding=8 cellspacing=0 border=0 width=1000>\n")
-            fh.write("<tr class=header><td>Frame %s:</a>\n" % i)
+            fh.write("<tr class=header><td>Frame %s: " % i)
             self.pp_html_description(gl_frame, fh)
             self.pp_html_example(gl_frame, fh)
             self.pp_html_predicate(vn_frame, fh)
@@ -121,6 +121,25 @@ class GLVerbClass(object):
             self.pp_html_qualia(gl_frame, fh)
             self.pp_html_event(gl_frame, fh)
             fh.write("</table>\n\n")
+            
+    def pp_reverse_image_html(self, fh, frame_number):
+        fh.write("<html>\n")
+        fh.write("<head>\n")
+        fh.write("<link rel=\"stylesheet\" type=\"text/css\" href=\"style.css\">\n")
+        fh.write("</head>\n")
+        fh.write("<body>\n")
+        fh.write("\n<h1>%s</h1>\n" % str(self.ID))
+        vn_frame = self.verbclass.frames[frame_number]
+        gl_frame = self.frames[frame_number]
+        fh.write("\n<table cellpadding=8 cellspacing=0 border=0 width=1000>\n")
+        fh.write("<tr class=header><td>Frame %s: " % frame_number)
+        self.pp_html_description(gl_frame, fh)
+        self.pp_html_example(gl_frame, fh)
+        self.pp_html_predicate(vn_frame, fh)
+        self.pp_html_subcat(gl_frame, fh)
+        self.pp_html_qualia(gl_frame, fh)
+        self.pp_html_event(gl_frame, fh)
+        fh.write("</table>\n\n")
     
     def __repr__(self):
         return str(self.ID) + " = {\n\nroles = " + str(self.roles) + \
@@ -776,6 +795,8 @@ def pp_image_search_html(verbclasslist, results):
         INDEX.write("<tr class=header><td>PP List: %s</a>\n" % scheme.pp_list)
         INDEX.write("<tr class=header><td>Selectional Restrictions: %s</a>\n" % scheme.sel_res_list)
         INDEX.write("<tr class=header><td>Thematic Roles: %s</a>\n" % scheme.role_list)
+        if len(results[1]) == 0:
+            INDEX.write("<tr class=body><td>No Results\n")
         for vc_id, class_results in result[1]:
             id_dict = {}
             for frame,frame_num,ID in class_results:
@@ -798,9 +819,13 @@ def pp_image_search_html(verbclasslist, results):
                     id_dict[ID] = [(frame_num, results_type)]
             for ID in id_dict.keys():
                 class_file = "imageresult-%s.html" % ID
-                INDEX.write("<tr class=vnlink><td><a href=\"%s\">%s</a>\n" % (class_file, ID))
+                INDEX.write("<tr class=body><td><a href=\"%s\">%s</a>\n" % (class_file, ID))
+                INDEX.write("  <td>")
                 for frame_num,results_type in sorted(id_dict[ID]):
-                    INDEX.write("<tr class=body align=center><td>\tFrame %s - Matched: %s" % (frame_num, results_type))
+                    INDEX.write("Frame %s" % frame_num)
+                    for result in results_type:
+                        INDEX.write("<sup>%s</sup> " % result)
+                    INDEX.write("&emsp;")
                 VNCLASS = open("html/%s" % class_file, 'w')
                 verbclass = search_by_ID(verbclasslist, ID)
                 verbclass.pp_image_html(VNCLASS, sorted([num for num,type in id_dict[ID]]))
@@ -817,18 +842,26 @@ def pp_reverse_image_search_html(verbclasslist, frame_list, scheme_list):
     INDEX.write("</head>\n")
     INDEX.write("<body>\n")
     INDEX.write("<table cellpadding=8 cellspacing=0>\n")
-    for frame,frame_num,ID in frame_list:
+    INDEX.write("<tr class=header><td>Reverse Image Search Results:\n</a>")
+    for frame,frame_num,ID in sorted(set(frame_list)):
         results = []
         for scheme in scheme_list:
             if reverse_image_search(frame, scheme):
                 results.append(scheme.name)
-        INDEX.write("<tr class=header><td>%s - Frame %s</a>\n" % (ID, frame_num))
-        class_file = "imageresultreverse-%s.html" % ID
-        INDEX.write("<tr class=body align=center><td>\tSchemes Matched: %s" % results)
-        INDEX.write("<tr class=vnlink><td><a href=\"%s\">Link to Frame</a>\n" % class_file)
+        INDEX.write("<tr class=body><td>%s</a>" % ID)
+        class_file = "imageresultreverse-%s_frame%s.html" % (ID, frame_num)
+        INDEX.write("<a href=\"%s\"> - Frame %s</a>" % (class_file, frame_num))
+        INDEX.write("  <td>")
+        if len(results) == 0:
+            INDEX.write("-\n")
+        for i in range(len(results)):
+            if i < len(results) - 1:
+                INDEX.write("%s, " % results[i])
+            else:
+                INDEX.write("%s\n" % results[i])
         VNCLASS = open("html/%s" % class_file, 'w')
         verbclass = search_by_ID(verbclasslist, ID)
-        verbclass.pp_image_html(VNCLASS, [frame_num])
+        verbclass.pp_reverse_image_html(VNCLASS, frame_num)
     INDEX.write("</table>\n")
     INDEX.write("</body>\n")
     INDEX.write("</html>\n")

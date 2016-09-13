@@ -44,7 +44,7 @@ nearfar_scheme = ImageScheme(
     [])
 
 updown_scheme = ImageScheme(
-    "Verticality - Up-Down",
+    "Up-Down",
     ["above", "below", "up", "down"], # Not in VerbNet
     ["loc"],
     ["Location"])
@@ -56,7 +56,7 @@ contact_scheme = ImageScheme(
     ["Destination"])
 
 frontbehind_scheme = ImageScheme(
-    "In front of - Behind",
+    "Front-Behind",
     ["front", "behind"], # Not in VerbNet
     ["loc"],
     ["Location"])
