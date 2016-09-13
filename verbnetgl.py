@@ -834,7 +834,6 @@ def pp_image_search_html(verbclasslist, results):
     INDEX.write("</html>\n")
 
 def pp_reverse_image_search_html(verbclasslist, frame_list, scheme_list):
-    """Uses a list of [image_search_name, search_results]"""
     INDEX = open('html/image_search_reverse_index.html', 'w')
     INDEX.write("<html>\n")
     INDEX.write("<head>\n")
@@ -862,6 +861,41 @@ def pp_reverse_image_search_html(verbclasslist, frame_list, scheme_list):
         VNCLASS = open("html/%s" % class_file, 'w')
         verbclass = search_by_ID(verbclasslist, ID)
         verbclass.pp_reverse_image_html(VNCLASS, frame_num)
+    INDEX.write("</table>\n")
+    INDEX.write("</body>\n")
+    INDEX.write("</html>\n")
+    
+def pp_reverse_image_bins_html(verbclasslist, frame_list, scheme_list):
+    INDEX = open('html/image_search_bins_index.html', 'w')
+    INDEX.write("<html>\n")
+    INDEX.write("<head>\n")
+    INDEX.write("<link rel=\"stylesheet\" type=\"text/css\" href=\"style.css\">\n")
+    INDEX.write("</head>\n")
+    INDEX.write("<body>\n")
+    INDEX.write("<table cellpadding=8 cellspacing=0>\n")
+    image_bins = dict()
+    for frame,frame_num,ID in sorted(set(frame_list)):
+        results = set()
+        for scheme in scheme_list:
+            if reverse_image_search(frame, scheme):
+                results.add(scheme.name)
+        if frozenset(results) in image_bins.keys():
+            image_bins[frozenset(results)].append((frame, frame_num, ID))
+        else:
+            image_bins[frozenset(results)] = [(frame, frame_num, ID)]
+    for bin in image_bins.keys():
+        INDEX.write("<tr class=header><td></a>")
+        if len(bin) == 0:
+            INDEX.write("PP Only Frames:")
+        for scheme in bin:
+            INDEX.write("%s&emsp;" % scheme)
+        INDEX.write("<tr class=body><td></a>")
+        for frame, frame_num, ID in image_bins[bin]:
+            class_file = "imageresultbins-%s_frame%s.html" % (ID, frame_num)
+            INDEX.write("<a href=\"%s\">%s<sup>%s&emsp;</sup></a>" % (class_file, ID, frame_num))
+            VNCLASS = open("html/%s" % class_file, 'w')
+            verbclass = search_by_ID(verbclasslist, ID)
+            verbclass.pp_reverse_image_html(VNCLASS, frame_num)
     INDEX.write("</table>\n")
     INDEX.write("</body>\n")
     INDEX.write("</html>\n")
@@ -1008,5 +1042,6 @@ if __name__ == '__main__':
     frames = reverse_image_frame_list()
     pp_image_search_html(vngl, image_results)
     pp_reverse_image_search_html(vngl, frames, SCHEME_LIST)
+    pp_reverse_image_bins_html(vngl, frames, SCHEME_LIST)
     
     
