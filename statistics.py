@@ -93,7 +93,40 @@ class PredicateStatistics(object):
                         successes.add(str(vc.ID) + "--" + str(i+1))
         return sorted(list(successes))
                     
-
+    def prep_roles_and_selres(self, verbclasslist):
+        """Collect all the roles (i.e. words) and selectional restrictions that
+        prepositions take in a verbclasslist"""
+        roles = Counter()
+        selres = Counter()
+        for vc in verbclasslist:
+            frame_and_id_list = [(frame, vc.ID) for frame in vc.frames]
+            for subclass in vc.subclasses:
+                sub_frames = self.recursive_frames(subclass)
+                frame_and_id_list.extend(sub_frames)
+            for frame,ID in frame_and_id_list:
+                for member in frame.subcat:
+                    if member.cat == "PREP":
+                        if len(member.role) > 0:
+                            roles[member.role[0]] += 1
+                            if "?" in member.role[0]:
+                                print ID, "?from or to"
+                        if len(member.sel_res) > 0:
+                            print member.sel_res, ID
+                            for res in member.sel_res:
+                                selres[res] += 1
+        return (roles, selres)
+            
+                
+    def recursive_frames(self, subclass):
+        frame_and_ids = [(frame, subclass.ID) for frame in subclass.frames]
+        if len(subclass.subclasses) == 0:
+            return frame_and_ids
+        else:
+            for subc in subclass.subclasses:
+                frame_and_ids.extend(self.recursive_frames(subc))
+            return frame_and_ids
+                
+        
 # Get the goods
 if __name__ == '__main__':
     vnp = VerbNetParser()
@@ -105,19 +138,23 @@ if __name__ == '__main__':
     print "\nSyntactic Roles: ", stats.synroles
     print "\nPOS: ", stats.POS
     print "\nTotal number of predicates: ", sum(stats.predicates.values())
-    print "\nClasses without all frames containing motion: ", stats.motion_check
-    print "\nClasses without all frames containing cause: ", stats.cause_check
-    print "\nClasses without all frames containing path_rel: ", stats.pathrel_check
-    print "\nClasses without all frames containing transfer: ", stats.transfer_check
-    motion_classes = [vc.ID for vc in search2(vngl, "motion")]
-    print "\nAll motion classes: ", motion_classes
-    print "\nNumber of motion classes: ", len(motion_classes)
-    motion_frames = stats.pred_search_by_frame(vngl, "motion")
-    print "\nAll motion frames: ", motion_frames
-    print "\nNumber of motion frames: ", len(motion_frames)
-    transfer_classes = [vc.ID for vc in search2(vngl, "transfer")]
-    print "\nAll transfer classes: ", transfer_classes
-    print "\nNumber of transfer classes: ", len(transfer_classes)
-    transfer_frames = stats.pred_search_by_frame(vngl, "transfer")
-    print "\nAll transfer frames: ", transfer_frames
-    print "\nNumber of transfer frames: ", len(transfer_frames)
+    def motion_related():
+        print "\nClasses without all frames containing motion: ", stats.motion_check
+        print "\nClasses without all frames containing cause: ", stats.cause_check
+        print "\nClasses without all frames containing path_rel: ", stats.pathrel_check
+        print "\nClasses without all frames containing transfer: ", stats.transfer_check
+        motion_classes = [vc.ID for vc in search2(vngl, "motion")]
+        print "\nAll motion classes: ", motion_classes
+        print "\nNumber of motion classes: ", len(motion_classes)
+        motion_frames = stats.pred_search_by_frame(vngl, "motion")
+        print "\nAll motion frames: ", motion_frames
+        print "\nNumber of motion frames: ", len(motion_frames)
+        transfer_classes = [vc.ID for vc in search2(vngl, "transfer")]
+        print "\nAll transfer classes: ", transfer_classes
+        print "\nNumber of transfer classes: ", len(transfer_classes)
+        transfer_frames = stats.pred_search_by_frame(vngl, "transfer")
+        print "\nAll transfer frames: ", transfer_frames
+        print "\nNumber of transfer frames: ", len(transfer_frames)
+    prep_roles, prep_selres = stats.prep_roles_and_selres(vngl)
+    print "\nPreposition Roles: ", prep_roles
+    print "\nPreposition Selres: ", prep_selres
