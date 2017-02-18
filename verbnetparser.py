@@ -14,6 +14,8 @@ __email__ = ["tcurcuru@brandeis.edu"]
 PROJECT_PATH = os.getcwd()
 VERBNET_PATH = os.path.join(PROJECT_PATH, "vn-3.2.4")
 
+VERBNET_PATH = '/DATA/resources/lexicons/verbnet/verbnet-3.3'
+
 
 class VerbNetParser(object):
     """Parse VerbNet XML files, and turn them into a list of BeautifulSoup 
@@ -32,6 +34,7 @@ class VerbNetParser(object):
         for fname in self.filenames:
             parsed_files.append(soup(open(fname), "lxml-xml"))
         return parsed_files
+
 
 class AbstractXML(object):
     """Abstract class to be inherited by other classes that share the same 
@@ -53,6 +56,7 @@ class AbstractXML(object):
             return special_soup.get(cat).split()
         except AttributeError:
             return []
+
 
 class VerbClass(AbstractXML):
     """Represents a single class of verbs in VerbNet (all verbs from the same 
@@ -103,6 +107,7 @@ class VerbClass(AbstractXML):
                + "\nFrames: " + str(self.frames) \
                + "\nSubclasses: " + str(self.subclasses)
 
+
 class Member(AbstractXML):
     """Represents a single member of a VerbClass, with associated name, WordNet
     category, and PropBank grouping"""
@@ -115,7 +120,8 @@ class Member(AbstractXML):
                 
     def __repr__(self):
         return str(self.name + self.wn + self.grouping)
-            
+
+
 class Frame(AbstractXML):
     """Represents a single verb frame in VerbNet, with a description, examples,
     syntax, and semantics """
@@ -148,7 +154,8 @@ class Frame(AbstractXML):
                "\nExamples: " + str(self.examples) + \
                "\nSyntax: " + str(self.syntax) + \
                "\nPredicates: " + str(self.predicates) + "\n"
-    
+
+
 class ThematicRole(AbstractXML):
     """Represents an entry in the "Roles" section in VerbNet, which is basically 
     a list of all roles for a given verb class, with possible selectional 
@@ -194,7 +201,8 @@ class Predicate(AbstractXML):
         
     def __repr__(self):
         return "Value: " + str(self.value[0]) + "\n" + str(self.argtypes) + "\n"
-    
+
+
 class SyntacticRole(AbstractXML):
     """Represents a syntactic role assigned to a frame"""
     
