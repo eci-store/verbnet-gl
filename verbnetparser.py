@@ -11,10 +11,15 @@ __author__ = ["Todd Curcuru"]
 __date__ = "3/15/2016"
 __email__ = ["tcurcuru@brandeis.edu"]
 
-PROJECT_PATH = os.getcwd()
-VERBNET_PATH = os.path.join(PROJECT_PATH, "vn-3.2.4")
 
-VERBNET_PATH = '/DATA/resources/lexicons/verbnet/verbnet-3.3'
+def get_verbnet_directory():
+    for line in open('config.txt'):
+        if line.startswith('VERBNET_PATH'):
+            return line.split('=')[1].strip()
+    return None
+
+
+VERBNET_PATH = get_verbnet_directory()
 
 
 class VerbNetParser(object):

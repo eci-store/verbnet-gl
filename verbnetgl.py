@@ -1,7 +1,15 @@
-"""
+"""verbnetgl.py
+
 This file contains the classes for the form of Verbnet that have been enhanced
 with GL event structures. The classes themselves do all the conversion necessary
-given a VerbClass from verbnetparser.py
+given a VerbClass from verbnetparser.py.
+
+To run this do the following:
+
+1. Copy config.sample.txt into config.txt
+2. Edit config.txt by changing the verbnet location
+3. Run this script without arguments
+
 """
 
 import os
