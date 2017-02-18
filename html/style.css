@@ -1,11 +1,12 @@
 
 table { margin: 5pt; margin-bottom: 10pt; border: 1px solid darkgrey; }
+table.noborder { border: 0px solid darkgrey; }
 
 h1 { padding: 10px;  margin: 5pt; margin-bottom: 15pt; border: 1px solid black; width:980px; }
 
 a:link { color: black; text-decoration: none; }
 a:visited { color: darkblue; text-decoration: none; }
-a:hover { color: darkred; text-decoration: none; font-weight: bold; }
+a:hover { color: darkred; text-decoration: underline; font-weight: xbold; }
 a:active { color: black; text-decoration: none; }
 
 .list { margin: 10pt; padding-left: 8pt; border: 1px solid darkgrey; width: 150pt; background-color: e8ffff; }
