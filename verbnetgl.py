@@ -31,7 +31,7 @@ class GLVerbClass(object):
         for i in range(len(self.frames)):
             vn_frame = self.verbclass.frames[i]
             gl_frame = self.frames[i]
-            fh.write("\n<table cellpadding=8 cellspacing=0 border=0 width=1000>\n")
+            fh.write("\n<table class=frame cellpadding=8 cellspacing=0 border=0 width=1000>\n")
             self.pp_html_description(gl_frame, fh)
             self.pp_html_example(gl_frame, fh)
             self.pp_html_predicate(vn_frame, fh)
@@ -472,95 +472,91 @@ def search2(verbclasslist, pred_type=None, themroles=None, synroles=None, semrol
                         successes.append(vc)
     return successes
 
-def search_by_argtype(verbclasslist, argtype, contains=False):
-    """Returns verbclass IDs that have predicates that contain the argtype.
-    Optional variable to allow for searching to see if the argtype contains a 
-    string"""
-    results = []
-    for vc in verbclasslist:
-        for frame in vc.frames:
-            for pred in frame.vnframe.predicates:
-                for arg, arg_type in pred.argtypes:
-                    if not contains:
-                        if argtype == arg_type:
-                            if vc.ID not in results:
-                                results.append(vc.ID)
-                    else:
-                        if argtype in arg_type:
-                            if vc.ID not in results:
-                                results.append(vc.ID)
-    return results
 
-def search_by_ID(verbclasslist, ID, contains=False):
-    """Returns verbclasses with a given ID name.
-    Optional variable to allow for searching to see if the argtype contains a 
-    string. Returns a list in case multiple classes have that ID/string"""
-    results = []
-    for vc in verbclasslist:
-        if not contains:
-            if ID == vc.ID:
-                results.append(vc)
-        else:
-            if ID in vc.ID:
-                results.append(vc)
-    return results
-            
-    
-def pp_html(results):
-    INDEX = open('html/index.html', 'w')
-    INDEX.write("<html>\n")
-    INDEX.write("<head>\n")
-    INDEX.write("<link rel=\"stylesheet\" type=\"text/css\" href=\"style.css\">\n")
-    INDEX.write("</head>\n")
-    INDEX.write("<body>\n")
-    INDEX.write("<table cellpadding=8 cellspacing=0>\n")
-    INDEX.write("<tr class=header><td>VN Motion Classes</a>\n")
-    for result in results:
-        class_file = "vnclass-%s.html" % result.ID
-        INDEX.write("<tr class=vnlink><td><a href=\"%s\">%s</a>\n" % (class_file, result.ID))
-        VNCLASS =  open("html/%s" % class_file, 'w')
-        result.pp_html(VNCLASS)
-    INDEX.write("</table>\n")
-    INDEX.write("</body>\n")
-    INDEX.write("</html>\n")
+
+class HtmlWriter(object):
+
+    def __init__(self):
+        self.index = open('html/index.html', 'w')
+        self._write_begin()
+
+    def _write_begin(self):
+        self.index.write("<html>\n")
+        self.index.write("<head>\n")
+        self.index.write("<link rel=\"stylesheet\" type=\"text/css\" href=\"style.css\">\n")
+        self.index.write("</head>\n")
+        self.index.write("<body>\n")
+        self.index.write("<table class=noborder >\n")
+        self.index.write("<tr valign=top>\n")
+
+    def write(self, results, header, prefix):
+        self.index.write("<td>\n")
+        self.index.write("<table cellpadding=8 cellspacing=0>\n")
+        self.index.write("<tr class=header><td>%s</a>\n" % header)
+        for result in results:
+            class_file = "vnclass-%s-%s.html" % (prefix, result.ID)
+            self.index.write("<tr class=vnlink><td><a href=\"%s\">%s</a>\n" % (class_file, result.ID))
+            fh =  open("html/%s" % class_file, 'w')
+            result.pp_html(fh)
+        self.index.write("</table>\n")
+        self.index.write("</td>\n")
+
+    def finish(self):
+        self.index.write("</tr>\n")
+        self.index.write("</table>\n")
+        self.index.write("</body>\n")
+        self.index.write("</html>\n")
 
 
 if __name__ == '__main__':
     
     vnp = VerbNetParser()
     vngl = [GLVerbClass(vc) for vc in vnp.verb_classes]
-    motion_results = search2(vngl, "motion")
-    transfer_results = search2(vngl, "transfer")
-    print len(motion_results), len(transfer_results)
-    results = motion_results + transfer_results
+
+    results = search2(vngl, "motion")
+    print len(results)
     #print vngl[269] #slide
-    pp_html(results)
+    
     possession_results = search2(vngl, "has_possession")
     print len(possession_results)
     for vc in possession_results:
         print vc.ID
-    # find all 'ch_of_' verb classes
-    ch_of_results = search_by_argtype(vngl, 'ch_of_', True)
-    print '\nch_of_\n', ch_of_results, len(ch_of_results)
-    results = search_by_argtype(vngl, 'ch_of_info')
-    print '\nch_of_info\n', results, len(results)
-    results = search_by_argtype(vngl, 'ch_of_pos')
-    print '\nch_of_pos\n', results, len(results)
-    results = search_by_argtype(vngl, 'ch_of_poss')
-    print '\nch_of_poss\n', results, len(results)
-    results = search_by_argtype(vngl, 'ch_of_state')
-    print '\nch_of_state\n', results, len(results)
-    results = search_by_argtype(vngl, 'ch_of_loc')
-    print '\nch_of_loc\n', results, len(results)
-    results = search_by_argtype(vngl, 'ch_of_location')
-    print '\nch_of_location\n', results, len(results)
-    # give
-    #print search_by_ID(vngl, 'give', True)[0]
-    # transfer possession verbs
-    transpos = search_by_argtype(transfer_results, 'ch_of_pos', True)
-    print '\nTransfer Possession:\n', transpos, len(transpos)
-    path_rel_results = search2(vngl, "path_rel")
-    print '\nNumber of path_rel classes:\n', len(path_rel_results)
-    path_less_ch = [vc.ID for vc in path_rel_results if vc.ID not in ch_of_results]
-    print '\npath_rel classes with no ch_of\n', path_less_ch
-    
+    for vc in vngl:
+        if vc.ID == "give-13.1":
+            print vc
+
+    possession = ['berry-13.7', 'cheat-10.6', 'contribute-13.2', 'equip-13.4.2',
+                 'exchange-13.6.1', 'fulfilling-13.4.1', 'get-13.5.1', 'give-13.1',
+                 'obtain-13.5.2', 'steal-10.5']
+    possession_vcs = [vc for vc in vngl if vc.ID in possession]
+
+    # find all 'ch_of_' predicate argument types
+    results2 = []
+    results2_vcs = []
+    for vc in vngl:
+        for frame in vc.frames:
+            for pred in frame.vnframe.predicates:
+                for arg, arg_type in pred.argtypes:
+                    if 'ch_of_' in arg_type:
+                        if arg_type not in results2:
+                            results2.append(arg_type)
+                            results2_vcs.append(vc)
+
+    # find all "ch_of_info" verb classes
+    results3 = []
+    results3_vcs = []
+    for vc in vngl:
+        for frame in vc.frames:
+            for pred in frame.vnframe.predicates:
+                for arg, arg_type in pred.argtypes:
+                    if 'ch_of_info' in arg_type:
+                        if vc.ID not in results3:
+                            results3.append(vc.ID)
+                            results3_vcs.append(vc)
+
+    writer = HtmlWriter()
+    writer.write(results, 'VN Motion Classes', 'motion')
+    writer.write(possession_vcs, 'VN Posession Classes', 'poss')
+    writer.write(results2_vcs, 'VN Change of State Classes', 'ch_of')
+    writer.write(results3_vcs, 'VN Change of Info Classes', 'ch_of_info')
+    writer.finish()
