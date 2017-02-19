@@ -16,6 +16,10 @@ import os, itertools
 
 from verbnetparser import VerbNetParser
 from imageschema import SCHEME_LIST
+from writer import HtmlWriter, HtmlClassWriter
+#from writer import pp_image_search_html
+#from writer import pp_reverse_image_search_html
+#from writer import pp_reverse_image_bins_html
 from search import search_by_predicate, search_by_argtype
 from search import search_by_ID, search_by_subclass_ID
 from search import search_by_themroles, search_by_POS, search_by_cat_and_role
@@ -33,6 +37,11 @@ class GLVerbClass(object):
         self.frames = self.frames()
         self.subclasses = [GLSubclass(sub, self.roles) for sub in verbclass.subclasses]
         
+    def __repr__(self):
+        return str(self.ID) + " = {\n\nroles = " + str(self.roles) + \
+               "\n\nframes = " + str(self.frames) + "\n}" + \
+               "\n Subclasses = " + str(self.subclasses)
+
     def frames(self):
         return [GLFrame(frame, self.roles) for frame in self.verbclass.frames]
 
@@ -54,131 +63,7 @@ class GLVerbClass(object):
         """Return True if the class is a change-of-info class, which is defined as
         having an argtype that contains ch_of_info in one of the frames."""
         return True if [t for t in self.argtypes() if 'ch_of_info' in t] else False
-
-    def pp_html(self, fh):
-        fh.write("<html>\n")
-        fh.write("<head>\n")
-        fh.write("<link rel=\"stylesheet\" type=\"text/css\" href=\"style.css\">\n")
-        fh.write("</head>\n")
-        fh.write("<body>\n")
-        fh.write("\n<h1>%s</h1>\n" % str(self.ID))
-        for i in range(len(self.frames)):
-            vn_frame = self.verbclass.frames[i]
-            gl_frame = self.frames[i]
-            fh.write("\n<table class=frame cellpadding=8 cellspacing=0 border=0 width=1000>\n")
-            self.pp_html_description(gl_frame, fh)
-            self.pp_html_example(gl_frame, fh)
-            self.pp_html_predicate(vn_frame, fh)
-            self.pp_html_subcat(gl_frame, fh)
-            self.pp_html_qualia(gl_frame, fh)
-            self.pp_html_event(gl_frame, fh)
-            fh.write("</table>\n\n")
-
-    def pp_html_description(self, gl_frame, fh):
-        #fh.write("<tr class=description>\n")
-        fh.write("  <td colspan=2>%s\n" % ' '.join(gl_frame.pri_description))
-
-    def pp_html_example(self, gl_frame, fh):
-        fh.write("<tr class=vn valign=top>\n")
-        fh.write("  <td width=180>Example\n")
-        fh.write("  <td>\"%s\"" % gl_frame.example[0])
-
-    def pp_html_predicate(self, vn_frame, fh):
-        def predicate_str(pred):
-            args = ', '.join([argtype[1] for argtype in pred.argtypes])
-            return "<span class=pred>%s</span>(%s)" % (pred.value[0], args)
-        fh.write("<tr class=vn valign=top>\n")
-        fh.write("  <td width=180>VerbNet&nbsp;predicates\n")
-        fh.write("  <td>")
-        fh.write(', '.join([predicate_str(pred) for pred in vn_frame.predicates]))
-
-    def pp_html_subcat(self, gl_frame, fh):
-        fh.write("<tr class=qualia valign=top>\n")
-        fh.write("  <td>GL&nbsp;subcategorisation\n")
-        fh.write("  <td>\n")
-        for element in gl_frame.subcat:
-            #fh.write("      { %s } <br>\n" % element)
-            fh.write("      {")
-            if element.var is not None:
-                fh.write(" var=%s" % element.var)
-            fh.write(" cat=%s" % element.cat)
-            if element.role:
-                fh.write(" role=%s" % element.role[0])
-            fh.write(" } / [")
-            self.pp_html_restriction(element.sel_res, fh)
-            fh.write("]<br>\n")
-
-    def pp_html_restriction(self, restriction, fh):
-        # print '>>', restriction
-        if not restriction:
-            pass
-        elif restriction[0] in ['+', '-']:
-            fh.write("%s%s" % (restriction[0], restriction[1]))
-        elif restriction[0] in ['OR', 'AND'] and len(restriction) == 3:
-            fh.write("(")
-            self.pp_html_restriction(restriction[1], fh)
-            fh.write(" %s " % restriction[0])
-            self.pp_html_restriction(restriction[2], fh)
-            fh.write(")")
-        else:
-            fh.write("%s" % restriction)
-
-    def pp_html_qualia(self, gl_frame, fh):
-        fh.write("<tr class=qualia valign=top>\n")
-        fh.write("  <td>GL&nbsp;qualia&nbsp;structure\n")
-        fh.write("  <td>%s\n" % gl_frame.qualia)
-
-    def pp_html_event(self, gl_frame, fh):
-        fh.write("<tr class=event valign=top>\n")
-        fh.write("  <td>GL event structure")
-        fh.write("  <td>var = %s<br>\n" % gl_frame.event_structure.var)
-        fh.write("      initial_states = %s<br>\n" % gl_frame.event_structure.initial_states)
-        fh.write("      final_states = %s\n" % gl_frame.event_structure.final_states)
     
-    def pp_image_html(self, fh, frame_numbers):
-        fh.write("<html>\n")
-        fh.write("<head>\n")
-        fh.write("<link rel=\"stylesheet\" type=\"text/css\" href=\"style.css\">\n")
-        fh.write("</head>\n")
-        fh.write("<body>\n")
-        fh.write("\n<h1>%s</h1>\n" % str(self.ID))
-        for i in frame_numbers:
-            vn_frame = self.verbclass.frames[i]
-            gl_frame = self.frames[i]
-            fh.write("\n<table cellpadding=8 cellspacing=0 border=0 width=1000>\n")
-            fh.write("<tr class=header><td>Frame %s: " % i)
-            self.pp_html_description(gl_frame, fh)
-            self.pp_html_example(gl_frame, fh)
-            self.pp_html_predicate(vn_frame, fh)
-            self.pp_html_subcat(gl_frame, fh)
-            self.pp_html_qualia(gl_frame, fh)
-            self.pp_html_event(gl_frame, fh)
-            fh.write("</table>\n\n")
-            
-    def pp_reverse_image_html(self, fh, frame_number):
-        fh.write("<html>\n")
-        fh.write("<head>\n")
-        fh.write("<link rel=\"stylesheet\" type=\"text/css\" href=\"style.css\">\n")
-        fh.write("</head>\n")
-        fh.write("<body>\n")
-        fh.write("\n<h1>%s</h1>\n" % str(self.ID))
-        vn_frame = self.verbclass.frames[frame_number]
-        gl_frame = self.frames[frame_number]
-        fh.write("\n<table cellpadding=8 cellspacing=0 border=0 width=1000>\n")
-        fh.write("<tr class=header><td>Frame %s: " % frame_number)
-        self.pp_html_description(gl_frame, fh)
-        self.pp_html_example(gl_frame, fh)
-        self.pp_html_predicate(vn_frame, fh)
-        self.pp_html_subcat(gl_frame, fh)
-        self.pp_html_qualia(gl_frame, fh)
-        self.pp_html_event(gl_frame, fh)
-        fh.write("</table>\n\n")
-    
-    def __repr__(self):
-        return str(self.ID) + " = {\n\nroles = " + str(self.roles) + \
-               "\n\nframes = " + str(self.frames) + "\n}" + \
-               "\n Subclasses = " + str(self.subclasses)
-
 
 class GLSubclass(GLVerbClass):
     """Represents a subclass to a GLVerbClass. This needs to be different from
@@ -186,9 +71,9 @@ class GLSubclass(GLVerbClass):
     subclass to only include thematic roles that differ from the main class,
     but does not list all the roles that stay the same. Since we need to update 
     self.roles, we can't call __init__ on the superclass because that would call
-    self.frames and self.subclasses before we updated our roles properly.
+    self.frames and self.subclasses before we updated our roles properly."""
     
-    TODO: check this for proper nesting"""
+    # TODO: check this for proper nesting
     
     def __init__(self, verbclass, parent_roles):
         self.verbclass = verbclass
@@ -547,43 +432,6 @@ class Qualia(object):
                str(self.opposition) + "}"
 
 
-
-class HtmlWriter(object):
-
-    def __init__(self, directory='html'):
-        self.directory = directory
-        self.index = open(os.path.join(self.directory, 'index.html'), 'w')
-        self._write_begin()
-
-    def _write_begin(self):
-        self.index.write("<html>\n")
-        self.index.write("<head>\n")
-        self.index.write("<link rel=\"stylesheet\" type=\"text/css\" href=\"style.css\">\n")
-        self.index.write("</head>\n")
-        self.index.write("<body>\n")
-        self.index.write("<table class=noborder >\n")
-        self.index.write("<tr valign=top>\n")
-
-    def write(self, results, header, group=''):
-        self.index.write("<td>\n")
-        self.index.write("<table cellpadding=8 cellspacing=0>\n")
-        self.index.write("<tr class=header><td>%s</a>\n" % header)
-        for result in results:
-            infix = group + '-' if group else ''
-            class_file = "vnclass-%s%s.html" % (infix, result.ID)
-            self.index.write("<tr class=vnlink><td><a href=\"%s\">%s</a>\n" % (class_file, result.ID))
-            fh =  open(os.path.join(self.directory, class_file), 'w')
-            result.pp_html(fh)
-        self.index.write("</table>\n")
-        self.index.write("</td>\n")
-
-    def finish(self):
-        self.index.write("</tr>\n")
-        self.index.write("</table>\n")
-        self.index.write("</body>\n")
-        self.index.write("</html>\n")
-
-
 def image_schema_search2(verbclasslist, pp_list, sem_list=None):
     """TODO: Try to find verb classes using image schema"""
     round_1 = set()
@@ -697,6 +545,9 @@ def reverse_image_search(frame, scheme, obligatory_theme=True, theme_only=False)
         return (pp or sr)
 
 
+# The following three functions should be moved to writer.py, but they cannot be
+# moved as is because of dependencies to methods in this file.
+
 def pp_image_search_html(verbclasslist, results):
     """Uses a list of [image_search_name, search_results]"""
     INDEX = open('html/image_search_index.html', 'w')
@@ -745,7 +596,9 @@ def pp_image_search_html(verbclasslist, results):
                     INDEX.write("&emsp;")
                 VNCLASS = open("html/%s" % class_file, 'w')
                 verbclass = search_by_ID(verbclasslist, ID)
-                verbclass.pp_image_html(VNCLASS, sorted([num for num,type in id_dict[ID]]))
+                class_writer = HtmlClassWriter(VNCLASS, verbclass)
+                frame_numbers = sorted([num for num,type in id_dict[ID]])
+                class_writer.write(frames=frame_numbers)
     INDEX.write("</table>\n")
     INDEX.write("</body>\n")
     INDEX.write("</html>\n")
@@ -778,7 +631,8 @@ def pp_reverse_image_search_html(verbclasslist, frame_list, scheme_list):
                 INDEX.write("%s\n" % results[i])
         VNCLASS = open("html/%s" % class_file, 'w')
         verbclass = search_by_ID(verbclasslist, ID)
-        verbclass.pp_reverse_image_html(VNCLASS, frame_num)
+        class_writer = HtmlClassWriter(VNCLASS, verbclass)
+        class_writer.write(frames=[frame_num])
     INDEX.write("</table>\n")
     INDEX.write("</body>\n")
     INDEX.write("</html>\n")
@@ -814,7 +668,8 @@ def pp_reverse_image_bins_html(verbclasslist, frame_list, scheme_list):
             INDEX.write("<a href=\"%s\">%s<sup>%s&emsp;</sup></a>" % (class_file, ID, frame_num))
             VNCLASS = open("html/%s" % class_file, 'w')
             verbclass = search_by_ID(verbclasslist, ID)
-            verbclass.pp_reverse_image_html(VNCLASS, frame_num)
+            class_writer = HtmlClassWriter(VNCLASS, verbclass)
+            class_writer.write(frames=[frame_num])
     INDEX.write("</table>\n")
     INDEX.write("</body>\n")
     INDEX.write("</html>\n")
@@ -918,41 +773,55 @@ def test_new_searches():
     
     
 def test_image_searches():
+
     print "\nin at on destination:\n"
     destination_results = image_schema_search2(vn_classes, ['in', 'at', 'on'], ['Destination'])
     print [vcid for frame,vcid in destination_results], len(destination_results)
+
     print "\nin at on location:\n"
     location_results = image_schema_search2(vn_classes, ['in', 'at', 'on'], ['Location'])
     print [vcid for frame,vcid in location_results], len(location_results)
+
     # figure out left-of right-of
+
     print "\nnear far:\n"
     nearfar_results = image_schema_search2(vn_classes, ['near', 'far'])
     print [vcid for frame,vcid in nearfar_results], len(nearfar_results)
+
     print "\nup-down:\n"
     updown_results = image_schema_search2(vn_classes, ['up', 'down', 'above', 'below'])
     print [vcid for frame,vcid in updown_results], len(updown_results)
+
     print "\nContact No-Contact on in:\n"
     contact_results = image_schema_search2(vn_classes, ['on', 'in'])
     print [vcid for frame,vcid in contact_results], len(contact_results)
+
     print "\nFront/Behind:\n"
     front_results = image_schema_search2(vn_classes, ['front', 'behind'])
     print [vcid for frame,vcid in front_results], len(front_results)
+
     #figure out advs of speed
+
     print "\nPath along on:\n"
     path_results = image_schema_search2(vn_classes, ['along', 'on'])
     print [vcid for frame,vcid in path_results], len(path_results)
+
     print "\nSource from:\n"
     source_results = image_schema_search2(vn_classes, ['from'], ['Initial_Location'])
     print [vcid for frame,vcid in source_results], len(source_results)
+
     print "\nEnd at to:\n"
     end_results = image_schema_search2(vn_classes, ['at', 'to'], ['Destination'])
     print [vcid for frame,vcid in end_results], len(end_results)
+
     print "\nDirectional toward away for:\n"
     directional_results = image_schema_search2(vn_classes, ['toward', 'away', 'for'], ['Source'])
     print [vcid for frame,vcid in directional_results], len(directional_results)
+
     print "\nContainer in inside:\n"
     container_results = image_schema_search2(vn_classes, ['in', 'inside'])
     print [vcid for frame,vcid in container_results], len(container_results)
+
     print "\nSurface over on:\n"
     surface_results = image_schema_search2(vn_classes, ['over', 'on'])
     print [vcid for frame,vcid in surface_results], len(surface_results)
@@ -992,15 +861,16 @@ def create_schema_to_verbnet_mappings():
 if __name__ == '__main__':
 
     vn = VerbNetParser()
+    #vn = VerbNetParser(max_count=50)
     vn_classes = [GLVerbClass(vc) for vc in vn.verb_classes]
 
-    #test1(vn_classes)
-    #test2(vn_classes)
-    test3(vn_classes)
+    test1(vn_classes)
+    test2(vn_classes)
+    #test3(vn_classes)
 
     #test_ch_of_searches()
     #test_new_searches()
-    #test_image_searches()
+    test_image_searches()
     #test_search_by_ID()
 
     #create_schema_to_verbnet_mappings()

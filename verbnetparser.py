@@ -1,22 +1,24 @@
-"""
+"""verbnetparser.py
+
 This program takes in VerbNet XML files and creates several classes for easy
-manipulation of the data, for eventual inclusion of GL features to individual 
+manipulation of the data, for eventual inclusion of GL features to individual
 verb frames.
+
 """
 
 import os
 from bs4 import BeautifulSoup as soup
 
-__author__ = ["Todd Curcuru"]
+__author__ = ["Todd Curcuru & Marc Verhagen"]
 __date__ = "3/15/2016"
-__email__ = ["tcurcuru@brandeis.edu"]
+__email__ = ["tcurcuru@brandeis.edu, marc@cs.brandeis.edu"]
 
 
 def get_verbnet_directory():
     for line in open('config.txt'):
         if line.startswith('VERBNET_PATH'):
             return line.split('=')[1].strip()
-    return None
+    exit('WARNING: could not find a value for VERBNET_PATH')
 
 
 VERBNET_PATH = get_verbnet_directory()
@@ -26,12 +28,14 @@ class VerbNetParser(object):
     """Parse VerbNet XML files, and turn them into a list of BeautifulSoup 
     objects"""
     
-    def __init__(self, file_directory=VERBNET_PATH):
-        self.filenames = [os.path.join(VERBNET_PATH, fname) for fname in 
-                          os.listdir(VERBNET_PATH) if fname.endswith(".xml")]
+    def __init__(self, max_count=None):
+        fnames = [f for f in os.listdir(VERBNET_PATH) if f.endswith(".xml")]
+        if max_count is not None:
+            fnames = fnames[:max_count]
+        self.filenames = [os.path.join(VERBNET_PATH, fname) for fname in fnames]
         self.parsed_files = self.parse_files()
         self.verb_classes = [VerbClass(parse) for parse in self.parsed_files]
-        
+
     def parse_files(self):
         """Parse a list of XML files using BeautifulSoup. Returns list of parsed
         soup objects"""
@@ -65,10 +69,9 @@ class AbstractXML(object):
 
 class VerbClass(AbstractXML):
     """Represents a single class of verbs in VerbNet (all verbs from the same 
-    XML file).
-    
-    TODO: Check if nested subclasses have issues"""
-    
+    XML file)."""
+    # TODO: Check if nested subclasses have issues
+
     def __init__(self, soup):
         self.soup = soup
         try:
@@ -115,7 +118,7 @@ class VerbClass(AbstractXML):
 
 class Member(AbstractXML):
     """Represents a single member of a VerbClass, with associated name, WordNet
-    category, and PropBank grouping"""
+    category, and PropBank grouping."""
     
     def __init__(self, soup):
         self.soup = soup

@@ -12,7 +12,7 @@ a:active { color: black; text-decoration: none; }
 .list { margin: 10pt; padding-left: 8pt; border: 1px solid darkgrey; width: 150pt; background-color: e8ffff; }
 .header { background-color: skyblue; }
 .vnlink { background-color: e8ffff; }
-.description { background-color: skyblue; }
+.description { background-color: skyblue; font-size: 120%; }
 .vn { background-color: e8ffff; }
 .qualia { background-color: lightyellow; }
 .event { background-color: lightyellow; }
