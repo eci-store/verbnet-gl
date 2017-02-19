@@ -12,10 +12,13 @@ To run this do the following:
 
 """
 
-import os
+import os, itertools
 
 from verbnetparser import VerbNetParser
-from imageschema import *
+from imageschema import SCHEME_LIST
+from search import search_by_predicate, search_by_argtype
+from search import search_by_ID, search_by_subclass_ID
+from search import search_by_themroles, search_by_POS, search_by_cat_and_role
 
 
 class GLVerbClass(object):
@@ -32,6 +35,25 @@ class GLVerbClass(object):
         
     def frames(self):
         return [GLFrame(frame, self.roles) for frame in self.verbclass.frames]
+
+    def argtypes(self):
+        """Return a set of all the argtypes found in all frames."""
+        argtypes = set()
+        for frame in self.frames:
+            for pred in frame.vnframe.predicates:
+                for arg, arg_type in pred.argtypes:
+                    argtypes.add(arg_type)
+        return list(argtypes)
+
+    def is_change_of_state_class(self):
+        """Return True if the class is a change-of-state class, which is defined as
+        having an argtype that contains ch_of in one of the frames."""
+        return True if [t for t in self.argtypes() if 'ch_of_' in t] else False
+
+    def is_change_of_info_class(self):
+        """Return True if the class is a change-of-info class, which is defined as
+        having an argtype that contains ch_of_info in one of the frames."""
+        return True if [t for t in self.argtypes() if 'ch_of_info' in t] else False
 
     def pp_html(self, fh):
         fh.write("<html>\n")
@@ -525,18 +547,6 @@ class Qualia(object):
                str(self.opposition) + "}"
 
 
-def search(verbclasslist, pred_type=None, themroles=None, synroles=None, semroles=None):
-    """Returns verbclasses that match search parameters
-    TODO: figure out what it means to search for themroles, synroles, and semroles"""
-    successes = []
-    for vc in verbclasslist:
-        for frame in vc.frames:
-            for pred in frame.vnframe.predicates:
-                if pred.value[0] == pred_type:
-                    if vc not in successes:
-                        successes.append(vc)
-    return successes
-
 
 class HtmlWriter(object):
 
@@ -554,12 +564,13 @@ class HtmlWriter(object):
         self.index.write("<table class=noborder >\n")
         self.index.write("<tr valign=top>\n")
 
-    def write(self, results, header, prefix):
+    def write(self, results, header, group=''):
         self.index.write("<td>\n")
         self.index.write("<table cellpadding=8 cellspacing=0>\n")
         self.index.write("<tr class=header><td>%s</a>\n" % header)
         for result in results:
-            class_file = "vnclass-%s-%s.html" % (prefix, result.ID)
+            infix = group + '-' if group else ''
+            class_file = "vnclass-%s%s.html" % (infix, result.ID)
             self.index.write("<tr class=vnlink><td><a href=\"%s\">%s</a>\n" % (class_file, result.ID))
             fh =  open(os.path.join(self.directory, class_file), 'w')
             result.pp_html(fh)
@@ -573,139 +584,7 @@ class HtmlWriter(object):
         self.index.write("</html>\n")
 
 
-def search_by_argtype(verbclasslist, argtype, contains=False):
-    """Returns verbclass IDs that have predicates that contain the argtype.
-    Optional variable to allow for searching to see if the argtype contains a 
-    string"""
-    results = []
-    for vc in verbclasslist:
-        for frame in vc.frames:
-            for pred in frame.vnframe.predicates:
-                for arg, arg_type in pred.argtypes:
-                    if not contains:
-                        if argtype == arg_type:
-                            if vc.ID not in results:
-                                results.append(vc.ID)
-                    else:
-                        if argtype in arg_type:
-                            if vc.ID not in results:
-                                results.append(vc.ID)
-    return results
-
-
-def search_by_ID(verbclasslist, ID, contains=False):
-    """Returns verbclasses with a given ID name.
-    Optional variable to allow for searching to see if the argtype contains a 
-    string. Returns a list in case multiple classes have that ID/string"""
-    for vc in verbclasslist:
-        if not contains:
-            if ID == vc.ID:
-                return vc
-            else:
-                if len(vc.subclasses) > 0:
-                    for subclass in vc.subclasses:
-                        result = search_by_subclass_ID(subclass, ID)
-                        if result is not None:
-                            return result
-        else:
-            if ID in vc.ID:
-                return vc
-    return None
-
-def search_by_subclass_ID(subclass, ID):
-    """Recursive search through subclasses to see if any match ID specified"""
-    if subclass.ID == ID:
-        return subclass
-    if len(subclass.subclasses) == 0:
-        if subclass.ID == ID:
-            return subclass
-        else:
-            return None
-    else:
-        for subc in subclass.subclasses:
-            result = search_by_subclass_ID(subc, ID)
-            if result is not None:
-                return result
-        return None
-
-
-def search_by_themroles(verbclasslist, themroles, only=False):
-    """Returns verbclasses that contain specified thematic roles.
-    Only returns classes that contain every role in the list, with the option
-    to only return classes that contain all and only those roles."""
-    results = []
-    nocase_themroles = [themrole.lower() for themrole in themroles]
-    for vc in verbclasslist:
-        out = False
-        for themrole in vc.roles:
-            if themrole.role_type.lower() not in nocase_themroles:
-                out = True
-        if not out:
-            if only:
-                if len(themroles) == len(vc.roles):
-                    results.append(vc)
-            else:
-                results.append(vc)
-    return results
-                
-
-def search_by_POS(verbclasslist, POS_list, only=False):
-    """Returns frames (and their verbclass's ID) that contain specified syntactic roles.
-    Only returns frames that contain every role in the list, with the option
-    to only return frames that contain all and only those roles.
-    
-    TODO: consider ordering and differentiating between classes with 1 NP vs 2, 
-    etc."""
-    results = []
-    nocase_pos = [POS.lower() for POS in POS_list]
-    for vc in verbclasslist:
-        for frame in vc.frames:
-            out = False
-            for member in frame.subcat:
-                if member.cat.lower() not in nocase_pos:
-                    out = True
-            if not out:
-                if only:
-                    if len(POS_list) == len(frame.subcat):
-                        results.append((frame, vc.ID))
-                else:
-                    results.append((frame, vc.ID))
-    return results
-
-
-def search_by_cat_and_role(verbclasslist, cat_role_tuples, only=False):
-    """Returns frames (and their verbclass's ID) that contain specified syntactic 
-    roles (POS), where those roles have a specific semantic category (Agent, etc.)
-    Only returns frames that contain every role in the list, with the option
-    to only return frames that contain all and only those cat/roles combinations."""
-    results = []
-    nocase_tuples = [(unicode(POS.lower(), "utf-8"), unicode(role.lower(), "utf-8"))\
-                    for POS,role in cat_role_tuples]
-    for vc in verbclasslist:
-        for frame in vc.frames:
-            out = False
-            for targetcat, targetrole in nocase_tuples:
-                inner_loop = False
-                for member in frame.subcat:
-                    cat = unicode(member.cat.lower(), "utf-8")
-                    role = unicode('none', "utf-8")
-                    if len(member.role) != 0:
-                        role = member.role[0].lower().encode('utf-8')
-                    if cat == targetcat:
-                        if role == targetrole:
-                            inner_loop = True
-                if not inner_loop:
-                    out = True
-            if not out:
-                if only:
-                    if len(cat_role_tuples) == len(frame.subcat):
-                        results.append((frame, vc.ID))
-                else:
-                    results.append((frame, vc.ID))
-    return results
-
-
-def image_schema_search(verbclasslist, pp_list, sem_list=None):
+def image_schema_search2(verbclasslist, pp_list, sem_list=None):
     """TODO: Try to find verb classes using image schema"""
     round_1 = set()
     for vc in verbclasslist:
@@ -818,25 +697,6 @@ def reverse_image_search(frame, scheme, obligatory_theme=True, theme_only=False)
         return (pp or sr)
 
 
-def pp_html(results):
-    INDEX = open('html/index.html', 'w')
-    INDEX.write("<html>\n")
-    INDEX.write("<head>\n")
-    INDEX.write("<link rel=\"stylesheet\" type=\"text/css\" href=\"style.css\">\n")
-    INDEX.write("</head>\n")
-    INDEX.write("<body>\n")
-    INDEX.write("<table cellpadding=8 cellspacing=0>\n")
-    INDEX.write("<tr class=header><td>VN Ch_of_ Classes</a>\n")
-    for result in results:
-        class_file = "vnclass-%s.html" % result.ID
-        INDEX.write("<tr class=vnlink><td><a href=\"%s\">%s</a>\n" % (class_file, result.ID))
-        VNCLASS =  open("html/%s" % class_file, 'w')
-        result.pp_html(VNCLASS)
-    INDEX.write("</table>\n")
-    INDEX.write("</body>\n")
-    INDEX.write("</html>\n")
-
-    
 def pp_image_search_html(verbclasslist, results):
     """Uses a list of [image_search_name, search_results]"""
     INDEX = open('html/image_search_index.html', 'w')
@@ -961,80 +821,172 @@ def pp_reverse_image_bins_html(verbclasslist, frame_list, scheme_list):
 
 
 def test1(vn_classes):
-    """Just print one class."""
-    print vn_classes[269] # shake
+    """Just print the first class."""
+    print vn_classes[0]
 
 
 def test2(vn_classes):
-    """In progress. Now uses pp_html but I would like it to use HtmlWriter."""
-    results = {}
-    for pred in ["motion", "transfer", "adjust", "cause", "transfer_info",
-                 "emotional_state", "location", "state", "wear"]:
-        results[pred] = search(vn_classes, pred)
-    for pred, results in results.items():
-        print pred, len(results)
-    # the above should be used to set the below, now there is bad redundancy
-    motion_results = search(vn_classes, "motion")
-    transfer_results = search(vn_classes, "transfer")
-    adjust_results = search(vn_classes, "adjust")
-    cause_results = search(vn_classes, "cause")
-    transfer_info_results = search(vn_classes, "transfer_info")
-    emotional_state_results = search(vn_classes, "emotional_state")
-    location_results = search(vn_classes, "location")
-    state_results = search(vn_classes, "state")
-    wear_results = search(vn_classes, "wear")
-    all_results = motion_results + transfer_results + adjust_results + cause_results + transfer_info_results +\
-                  emotional_state_results + location_results + state_results +\
-                  wear_results
-    pp_html(sorted(set(all_results)))
+    """Print a list of classes that match a couple of hand-picked predicates."""
+    preds = ["motion", "transfer", "adjust", "cause", "transfer_info",
+             "emotional_state", "location", "state", "wear"]
+    results = { p: search_by_predicate(vn_classes, p) for p in preds }
+    result_classes = [i for i in itertools.chain.from_iterable(results.values())]
+    result_classes = sorted(set(result_classes))
+    writer = HtmlWriter()
+    writer.write(result_classes, "VN Classes")
 
 
 def test3(vn_classes):
     """This is what produces the output with motion classes, possession classes,
     change of state classes and chango of info classes."""
+    # TODO. We have three ways of finding classes: doing a search, setting a
+    # list manually, and checking a test method on the classes. Should probably
+    # use only one way of doing this.
 
-    motion_results = search(vn_classes, "motion")
-    transfer_results = search(vn_classes, "transfer")
+    motion_vcs = search_by_predicate(vn_classes, "motion")
+    transfer_vcs = search_by_predicate(vn_classes, "transfer")
 
     # possession_results = search(vn_classes, "has_possession")
     # print len(possession_results), [vc.ID for vc in possession_results]
 
-    # we only find three with th eabove so define them manually
+    # we only find three with the above so define them manually
     possession = ['berry-13.7', 'cheat-10.6', 'contribute-13.2', 'equip-13.4.2',
                  'exchange-13.6.1', 'fulfilling-13.4.1', 'get-13.5.1', 'give-13.1',
                  'obtain-13.5.2', 'steal-10.5']
     possession_vcs = [vc for vc in vn_classes if vc.ID in possession]
 
-    # find all 'ch_of_' predicate argument types
-    results2 = []
-    results2_vcs = []
-    for vc in vn_classes:
-        for frame in vc.frames:
-            for pred in frame.vnframe.predicates:
-                for arg, arg_type in pred.argtypes:
-                    if 'ch_of_' in arg_type:
-                        if arg_type not in results2:
-                            results2.append(arg_type)
-                            results2_vcs.append(vc)
-
-    # find all "ch_of_info" verb classes
-    results3 = []
-    results3_vcs = []
-    for vc in vn_classes:
-        for frame in vc.frames:
-            for pred in frame.vnframe.predicates:
-                for arg, arg_type in pred.argtypes:
-                    if 'ch_of_info' in arg_type:
-                        if vc.ID not in results3:
-                            results3.append(vc.ID)
-                            results3_vcs.append(vc)
+    ch_of_state_vcs = [vc for vc in vn_classes if vc.is_change_of_state_class()]
+    ch_of_info_vcs = [vc for vc in vn_classes if vc.is_change_of_info_class()]
 
     writer = HtmlWriter()
-    writer.write(motion_results + transfer_results, 'VN Motion Classes', 'motion')
+    writer.write(motion_vcs + transfer_vcs, 'VN Motion Classes', 'motion')
     writer.write(possession_vcs, 'VN Posession Classes', 'poss')
-    writer.write(results2_vcs, 'VN Change of State Classes', 'ch_of')
-    writer.write(results3_vcs, 'VN Change of Info Classes', 'ch_of_info')
+    writer.write(ch_of_state_vcs, 'VN Change of State Classes', 'ch_of_x')
+    writer.write(ch_of_info_vcs, 'VN Change of Info Classes', 'ch_of_info')
     writer.finish()
+
+
+
+def test_ch_of_searches():
+    # find all 'ch_of_' verb classes
+    ch_of_results = search_by_argtype(vn_classes, 'ch_of_', True)
+    print '\nch_of_\n', ch_of_results, len(ch_of_results)
+    results = search_by_argtype(vn_classes, 'ch_of_info')
+    print '\nch_of_info\n', results, len(results)
+    results = search_by_argtype(vn_classes, 'ch_of_pos')
+    print '\nch_of_pos\n', results, len(results)
+    results = search_by_argtype(vn_classes, 'ch_of_poss')
+    print '\nch_of_poss\n', results, len(results)
+    results = search_by_argtype(vn_classes, 'ch_of_state')
+    print '\nch_of_state\n', results, len(results)
+    results = search_by_argtype(vn_classes, 'ch_of_loc')
+    print '\nch_of_loc\n', results, len(results)
+    results = search_by_argtype(vn_classes, 'ch_of_location')
+    print '\nch_of_location\n', results, len(results)
+    # print search_by_ID(vn_classes, 'give', True)[0]
+    # transfer possession verbs
+    # transpos = search_by_argtype(transfer_results, 'ch_of_pos', True)
+    # print '\nTransfer Possession:\n', transpos, len(transpos)
+    # path_rel_results = search(vn_classes, "path_rel")
+    # print '\nNumber of path_rel classes:\n', len(path_rel_results)
+    # path_less_ch = [vc.ID for vc in path_rel_results if vc.ID not in ch_of_results]
+    # print '\npath_rel classes with no ch_of\n', path_less_ch
+    
+
+def test_new_searches():
+    print "\n\nVerbclasses with Agent and Patient thematic roles:"
+    them_results = search_by_themroles(vn_classes, ['Agent', 'Patient'])
+    print '\n', [vc.ID for vc in them_results], '\n', len(them_results)
+    them_results2 = search_by_themroles(vn_classes, ['Agent', 'Patient'], True)
+    print '\nAgent and Patient only classes:\n\n', [vc.ID for vc in them_results2]
+    print len(them_results2)
+    print "\n\nVerbclasses with frames with NP and VERB syntactic roles:"
+    pos_results = search_by_POS(vn_classes, ['NP', 'VERB'])
+    print '\n', len(pos_results)
+    pos_results2 = search_by_POS(vn_classes, ['NP', 'VERB'], True)
+    print '\nNP and VERB only classes:\n\n', [ID for frame,ID in pos_results2]
+    print len(pos_results2)
+    print "\n\nVerbclasses with frames with (NP, Agent) subcat members:"
+    catrole_results = search_by_cat_and_role(vn_classes, [('NP', 'Agent')] )
+    print '\n', len(catrole_results)
+    catrole_results2 = search_by_cat_and_role(vn_classes, [('NP', 'Agent'), ('PREP', 'None')] )
+    print '\n(NP, Agent) and (PREP, None) classes:\n\n', [ID for frame,ID in catrole_results2]
+    print len(catrole_results2)
+    catrole_results3 = search_by_cat_and_role(vn_classes, [('NP', 'Agent'), ('VERB', 'None')], True )
+    print '\n(NP, Agent) and (VERB, None) only classes:\n\n', [ID for frame,ID in catrole_results3]
+    print len(catrole_results3)
+    
+    
+def test_image_searches():
+    print "\nin at on destination:\n"
+    destination_results = image_schema_search2(vn_classes, ['in', 'at', 'on'], ['Destination'])
+    print [vcid for frame,vcid in destination_results], len(destination_results)
+    print "\nin at on location:\n"
+    location_results = image_schema_search2(vn_classes, ['in', 'at', 'on'], ['Location'])
+    print [vcid for frame,vcid in location_results], len(location_results)
+    # figure out left-of right-of
+    print "\nnear far:\n"
+    nearfar_results = image_schema_search2(vn_classes, ['near', 'far'])
+    print [vcid for frame,vcid in nearfar_results], len(nearfar_results)
+    print "\nup-down:\n"
+    updown_results = image_schema_search2(vn_classes, ['up', 'down', 'above', 'below'])
+    print [vcid for frame,vcid in updown_results], len(updown_results)
+    print "\nContact No-Contact on in:\n"
+    contact_results = image_schema_search2(vn_classes, ['on', 'in'])
+    print [vcid for frame,vcid in contact_results], len(contact_results)
+    print "\nFront/Behind:\n"
+    front_results = image_schema_search2(vn_classes, ['front', 'behind'])
+    print [vcid for frame,vcid in front_results], len(front_results)
+    #figure out advs of speed
+    print "\nPath along on:\n"
+    path_results = image_schema_search2(vn_classes, ['along', 'on'])
+    print [vcid for frame,vcid in path_results], len(path_results)
+    print "\nSource from:\n"
+    source_results = image_schema_search2(vn_classes, ['from'], ['Initial_Location'])
+    print [vcid for frame,vcid in source_results], len(source_results)
+    print "\nEnd at to:\n"
+    end_results = image_schema_search2(vn_classes, ['at', 'to'], ['Destination'])
+    print [vcid for frame,vcid in end_results], len(end_results)
+    print "\nDirectional toward away for:\n"
+    directional_results = image_schema_search2(vn_classes, ['toward', 'away', 'for'], ['Source'])
+    print [vcid for frame,vcid in directional_results], len(directional_results)
+    print "\nContainer in inside:\n"
+    container_results = image_schema_search2(vn_classes, ['in', 'inside'])
+    print [vcid for frame,vcid in container_results], len(container_results)
+    print "\nSurface over on:\n"
+    surface_results = image_schema_search2(vn_classes, ['over', 'on'])
+    print [vcid for frame,vcid in surface_results], len(surface_results)
+
+    
+def test_search_by_ID():
+    print search_by_ID(vn_classes, "swarm-47.5.1").subclasses[1]
+
+    
+def new_image_searches():
+    results = []
+    for scheme in SCHEME_LIST:
+        result = image_schema_search(vn_classes, scheme)
+        results.append((scheme, result))
+    return results
+
+
+def reverse_image_frame_list():
+    image_results = new_image_searches()
+    frame_list = []
+    for scheme, results in image_results:
+        for vc_id, class_results in results:
+            for frame,frame_num,ID in class_results:
+                frame_list.append((frame, frame_num, ID))
+    return frame_list
+
+
+def create_schema_to_verbnet_mappings():
+    image_results = new_image_searches()
+    frames = reverse_image_frame_list()
+    pp_image_search_html(vn_classes, image_results)
+    pp_reverse_image_search_html(vn_classes, frames, SCHEME_LIST)
+    pp_reverse_image_bins_html(vn_classes, frames, SCHEME_LIST)
+
 
 
 if __name__ == '__main__':
@@ -1042,129 +994,13 @@ if __name__ == '__main__':
     vn = VerbNetParser()
     vn_classes = [GLVerbClass(vc) for vc in vn.verb_classes]
 
-    # test1(vn_classes)
-    # test2(vn_classes)
+    #test1(vn_classes)
+    #test2(vn_classes)
     test3(vn_classes)
 
-    # the code below does the image schema to verbnet mapping, it desparately
-    # needs to be refactored, exit here for now
-    exit()
+    #test_ch_of_searches()
+    #test_new_searches()
+    #test_image_searches()
+    #test_search_by_ID()
 
-    # find all 'ch_of_' verb classes
-    def ch_of_searches():
-        ch_of_results = search_by_argtype(vn_classes, 'ch_of_', True)
-        print '\nch_of_\n', ch_of_results, len(ch_of_results)
-        results = search_by_argtype(vn_classes, 'ch_of_info')
-        print '\nch_of_info\n', results, len(results)
-        results = search_by_argtype(vn_classes, 'ch_of_pos')
-        print '\nch_of_pos\n', results, len(results)
-        results = search_by_argtype(vn_classes, 'ch_of_poss')
-        print '\nch_of_poss\n', results, len(results)
-        results = search_by_argtype(vn_classes, 'ch_of_state')
-        print '\nch_of_state\n', results, len(results)
-        results = search_by_argtype(vn_classes, 'ch_of_loc')
-        print '\nch_of_loc\n', results, len(results)
-        results = search_by_argtype(vn_classes, 'ch_of_location')
-        print '\nch_of_location\n', results, len(results)
-    # give
-    #print search_by_ID(vn_classes, 'give', True)[0]
-    # transfer possession verbs
-#    transpos = search_by_argtype(transfer_results, 'ch_of_pos', True)
-#    print '\nTransfer Possession:\n', transpos, len(transpos)
-#    path_rel_results = search(vn_classes, "path_rel")
-#    print '\nNumber of path_rel classes:\n', len(path_rel_results)
-#    path_less_ch = [vc.ID for vc in path_rel_results if vc.ID not in ch_of_results]
-#    print '\npath_rel classes with no ch_of\n', path_less_ch
-    
-    # test new searches
-    def new_searches():
-        print "\n\nVerbclasses with Agent and Patient thematic roles:"
-        them_results = search_by_themroles(vn_classes, ['Agent', 'Patient'])
-        print '\n', [vc.ID for vc in them_results], '\n', len(them_results)
-        them_results2 = search_by_themroles(vn_classes, ['Agent', 'Patient'], True)
-        print '\nAgent and Patient only classes:\n\n', [vc.ID for vc in them_results2]
-        print len(them_results2)
-        print "\n\nVerbclasses with frames with NP and VERB syntactic roles:"
-        pos_results = search_by_POS(vn_classes, ['NP', 'VERB'])
-        print '\n', len(pos_results)
-        pos_results2 = search_by_POS(vn_classes, ['NP', 'VERB'], True)
-        print '\nNP and VERB only classes:\n\n', [ID for frame,ID in pos_results2]
-        print len(pos_results2)
-        print "\n\nVerbclasses with frames with (NP, Agent) subcat members:"
-        catrole_results = search_by_cat_and_role(vn_classes, [('NP', 'Agent')] )
-        print '\n', len(catrole_results)
-        catrole_results2 = search_by_cat_and_role(vn_classes, [('NP', 'Agent'), ('PREP', 'None')] )
-        print '\n(NP, Agent) and (PREP, None) classes:\n\n', [ID for frame,ID in catrole_results2]
-        print len(catrole_results2)
-        catrole_results3 = search_by_cat_and_role(vn_classes, [('NP', 'Agent'), ('VERB', 'None')], True )
-        print '\n(NP, Agent) and (VERB, None) only classes:\n\n', [ID for frame,ID in catrole_results3]
-        print len(catrole_results3)
-    
-    #test image schema searches
-    def image_searches():
-        print "\nin at on destination:\n"
-        destination_results = image_schema_search2(vn_classes, ['in', 'at', 'on'], ['Destination'])
-        print [vcid for frame,vcid in destination_results], len(destination_results)
-        print "\nin at on location:\n"
-        location_results = image_schema_search2(vn_classes, ['in', 'at', 'on'], ['Location'])
-        print [vcid for frame,vcid in location_results], len(location_results)
-        # figure out left-of right-of
-        print "\nnear far:\n"
-        nearfar_results = image_schema_search2(vn_classes, ['near', 'far'])
-        print [vcid for frame,vcid in nearfar_results], len(nearfar_results)
-        print "\nup-down:\n"
-        updown_results = image_schema_search2(vn_classes, ['up', 'down', 'above', 'below'])
-        print [vcid for frame,vcid in updown_results], len(updown_results)
-        print "\nContact No-Contact on in:\n"
-        contact_results = image_schema_search2(vn_classes, ['on', 'in'])
-        print [vcid for frame,vcid in contact_results], len(contact_results)
-        print "\nFront/Behind:\n"
-        front_results = image_schema_search2(vn_classes, ['front', 'behind'])
-        print [vcid for frame,vcid in front_results], len(front_results)
-        #figure out advs of speed
-        print "\nPath along on:\n"
-        path_results = image_schema_search2(vn_classes, ['along', 'on'])
-        print [vcid for frame,vcid in path_results], len(path_results)
-        print "\nSource from:\n"
-        source_results = image_schema_search2(vn_classes, ['from'], ['Initial_Location'])
-        print [vcid for frame,vcid in source_results], len(source_results)
-        print "\nEnd at to:\n"
-        end_results = image_schema_search2(vn_classes, ['at', 'to'], ['Destination'])
-        print [vcid for frame,vcid in end_results], len(end_results)
-        print "\nDirectional toward away for:\n"
-        directional_results = image_schema_search2(vn_classes, ['toward', 'away', 'for'], ['Source'])
-        print [vcid for frame,vcid in directional_results], len(directional_results)
-        print "\nContainer in inside:\n"
-        container_results = image_schema_search2(vn_classes, ['in', 'inside'])
-        print [vcid for frame,vcid in container_results], len(container_results)
-        print "\nSurface over on:\n"
-        surface_results = image_schema_search2(vn_classes, ['over', 'on'])
-        print [vcid for frame,vcid in surface_results], len(surface_results)
-    
-    def new_image_searches():
-        results = []
-        for scheme in SCHEME_LIST:
-            result = image_schema_search(vn_classes, scheme)
-            results.append((scheme, result))
-            #for scheme,result in results:
-            #    print "\n", scheme, "\nResults - " + str(len(result)) + " Frames:"
-            #    for vc_id, frame_results in result:
-            #        print [vcid for frame,frame_num,vcid in frame_results]
-        return results
-    
-    #print search_by_ID(vn_classes, "swarm-47.5.1").subclasses[1]
-    
-    def reverse_image_frame_list():
-        image_results = new_image_searches()
-        frame_list = []
-        for scheme, results in image_results:
-            for vc_id, class_results in results:
-                for frame,frame_num,ID in class_results:
-                    frame_list.append((frame, frame_num, ID))
-        return frame_list
-    
-    image_results = new_image_searches()
-    frames = reverse_image_frame_list()
-    pp_image_search_html(vn_classes, image_results)
-    pp_reverse_image_search_html(vn_classes, frames, SCHEME_LIST)
-    pp_reverse_image_bins_html(vn_classes, frames, SCHEME_LIST)
+    #create_schema_to_verbnet_mappings()

@@ -82,6 +82,13 @@ class VerbClass(AbstractXML):
         self.themroles = self.themroles()
         self.subclasses = self.subclass()
 
+    def __repr__(self):
+        return str(self.ID) + "\n" + str([mem.__repr__() for mem in self.members]) \
+               + "\nThemRoles: " + str(self.themroles) \
+               + "\nNames: " + str(self.names) \
+               + "\nFrames: " + str(self.frames) \
+               + "\nSubclasses: " + str(self.subclasses)
+
     def members(self):
         """Get all members of a verb class"""
         return [Member(mem_soup) for mem_soup in self.soup.MEMBERS.find_all("MEMBER")]
@@ -104,13 +111,6 @@ class VerbClass(AbstractXML):
             return []
         return [VerbClass(sub_soup) for sub_soup in \
                 self.soup.SUBCLASSES.find_all("VNSUBCLASS", recursive=False)]
-    
-    def __repr__(self):
-        return str(self.ID) + "\n" + str([mem.__repr__() for mem in self.members]) \
-               + "\nThemRoles: " + str(self.themroles) \
-               + "\nNames: " + str(self.names) \
-               + "\nFrames: " + str(self.frames) \
-               + "\nSubclasses: " + str(self.subclasses)
 
 
 class Member(AbstractXML):
