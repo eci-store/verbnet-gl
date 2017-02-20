@@ -146,3 +146,119 @@ def search_by_cat_and_role(verbclasslist, cat_role_tuples, only=False):
                 else:
                     results.append((frame, vc.ID))
     return results
+
+
+# Four function to perform image schema related searches, can probably be
+# somewhat simplified
+
+def image_schema_search(verbclasslist, scheme, second_round=True, inclusive=False):
+    """Use an ImageScheme object to find verb frames that match the scheme
+    Optionally allows to make thematic roles inclusive (search results can return
+    verb classes that only have a thematic role, as opposed to requiring a prep
+    or selectional restriction)
+    Optional second round to narrow search results to include only those verb
+    classes that contain the elements from the list of thematic roles"""
+    results = []
+    for vc in verbclasslist:
+        result = set()
+        frame_and_id_list = []
+        for i in range(len(vc.frames)):
+            frame_and_id_list.append((vc.frames[i], i, vc.ID))
+        for subclass in vc.subclasses:
+            sub_frames = recursive_frames(subclass)
+            frame_and_id_list.extend(sub_frames)
+        for frame,frame_num,ID in frame_and_id_list:
+            for member in frame.subcat:
+                if member.cat == "PREP":
+                    if len(member.role) > 0:
+                        if member.role[0] in scheme.pp_list:
+                            result.add((frame, frame_num, ID))
+                    if len(member.sel_res) > 0:
+                        for res in member.sel_res:
+                            if res in scheme.sel_res_list:
+                                result.add((frame, frame_num, ID))
+                if inclusive:
+                    if len(member.role) > 0:
+                        if member.role[0] in scheme.role_list:
+                            result.add((frame, frame_num, ID))
+        if len(result) > 0:
+            results.append((vc.ID, result))
+    if len(scheme.role_list) > 0:
+        if second_round:
+            round_2 = []
+            for vc_id, class_results in results:
+                result = set()
+                for frame,frame_num,ID in class_results:
+                    for member in frame.subcat:
+                        if len(member.role) > 0:
+                            if member.role[0] in scheme.role_list:
+                                result.add((frame, frame_num, ID))
+                if len(result) > 0:
+                    round_2.append((vc_id, result))
+            return sorted(round_2)
+    return sorted(results)
+
+
+def image_schema_search2(verbclasslist, pp_list, sem_list=None):
+    """TODO: Try to find verb classes using image schema"""
+    round_1 = set()
+    for vc in verbclasslist:
+        for frame in vc.frames:
+            for member in frame.subcat:
+                if member.cat == 'PREP':
+                    if len(member.role) != 0:
+                        for role in member.role:
+                            if role in pp_list:
+                                round_1.add((frame, vc.ID))
+    if not sem_list:
+        return sorted(round_1)
+    else:
+        round_2 = set()
+        for frame,vc_id in round_1:
+            for member in frame.subcat:
+                if len(member.role) != 0:
+                    for rol in member.role:
+                        if rol in sem_list:
+                            round_2.add((frame, vc_id))
+    return sorted(round_2)
+
+
+def recursive_frames(subclass):
+    frame_and_ids = []
+    for i in range(len(subclass.frames)):
+        frame_and_ids.append((subclass.frames[i], i, subclass.ID))
+    if len(subclass.subclasses) == 0:
+        return frame_and_ids
+    else:
+        for subc in subclass.subclasses:
+            frame_and_ids.extend(recursive_frames(subc))
+        return frame_and_ids
+
+
+def reverse_image_search(frame, scheme, obligatory_theme=True, theme_only=False):
+    """Checks to see if a particular frame belongs to an image schema
+    Optionally allows to make the check for agreement on thematic roles
+    obligatory.
+    Also optionally allows for the search to return true if the frame only matches
+    a thematic role"""
+    pp = False
+    sr = False
+    tr = False
+    for member in frame.subcat:
+        if member.cat == "PREP":
+            if len(member.role) > 0:
+                if member.role[0] in scheme.pp_list:
+                    pp = True
+            if len(member.sel_res) > 0:
+                for res in member.sel_res:
+                    if res in scheme.sel_res_list:
+                        sr = True
+        if len(member.role) > 0:
+            if member.role[0] in scheme.role_list:
+                tr = True
+    if theme_only:
+        return tr
+    if obligatory_theme:
+        return (pp or sr) and tr
+    else:
+        return (pp or sr)

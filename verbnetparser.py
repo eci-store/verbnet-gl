@@ -206,9 +206,12 @@ class Predicate(AbstractXML):
         self.args = self.soup.find_all('ARG')
         self.argtypes = [(self.get_category('type', arg)[0], 
                           self.get_category('value', arg)[0]) for arg in self.args]
-        
+
+    def __str__(self):
+        return "%s(%s)" % (self.value[0], ', '.join([at[1] for at in self.argtypes]))
+
     def __repr__(self):
-        return "Value: " + str(self.value[0]) + "\n" + str(self.argtypes) + "\n"
+        return "Value: " + str(self.value[0]) + " -- " + str(self.argtypes)
 
 
 class SyntacticRole(AbstractXML):

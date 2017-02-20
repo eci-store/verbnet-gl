@@ -23,7 +23,7 @@ from writer import HtmlWriter, HtmlClassWriter
 from search import search_by_predicate, search_by_argtype
 from search import search_by_ID, search_by_subclass_ID
 from search import search_by_themroles, search_by_POS, search_by_cat_and_role
-
+from search import reverse_image_search, image_schema_search, image_schema_search2
 
 class GLVerbClass(object):
     """VerbClass analogue, with an update mostly to frames"""
@@ -43,7 +43,7 @@ class GLVerbClass(object):
                "\n Subclasses = " + str(self.subclasses)
 
     def frames(self):
-        return [GLFrame(frame, self.roles) for frame in self.verbclass.frames]
+        return [GLFrame(self, frame) for frame in self.verbclass.frames]
 
     def argtypes(self):
         """Return a set of all the argtypes found in all frames."""
@@ -106,9 +106,10 @@ class GLFrame(object):
     syn/sem variables in the subcat to those in the event structure
     Event structure should be its own class or method?"""
     
-    def __init__(self, frame, roles):
+    def __init__(self, glverbclass, frame):
+        self.glverbclass = glverbclass
         self.vnframe = frame
-        self.class_roles = roles
+        self.class_roles = glverbclass.roles
         self.pri_description = frame.primary
         self.sec_description = frame.secondary
         self.example = frame.examples
@@ -116,7 +117,15 @@ class GLFrame(object):
         self.qualia = None
         self.event_structure = None
         self.event_and_opposition_structure2()
-        
+        #self.XXX_event_and_opposition_structure()
+
+    def __repr__(self):
+        return "\n\n{ description = " + str(" ".join(self.pri_description)) + \
+            "\nexample = " + str(self.example[0]) + \
+            "\nsubcat = " + str(self.subcat) + \
+            "\nqualia = " + str(self.qualia) + \
+            "\nevent_structure = {" + str(self.event_structure) + "\t}\n"
+
     def subcat(self):
         """Creates the subcat frame structure with unique variables assigned to
         different phrases/roles"""
@@ -143,7 +152,7 @@ class GLFrame(object):
                 members.append(SubcatMember(None, synrole, None))
         return members
     
-    def event_and_opposition_structure(self):
+    def XXX_event_and_opposition_structure(self):
         """Uses the frame information to determine what initial and final states
         should look like, given the variables available in the subcat frame, and
         the roles for the verb class
@@ -203,127 +212,58 @@ class GLFrame(object):
         opposition = Opposition(None, initial_state, final_state)
         self.event_structure = EventStructure(initial_state, final_state)
         self.qualia = Qualia(self.vnframe.predicates[0], opposition)
-        
+
+
     def event_and_opposition_structure2(self):
         """Uses the frame information to determine what initial and final states
         should look like, given the variables available in the subcat frame, and
-        the roles for the verb class
-        """
-        states = []        
+        the roles for the verb class."""
+
+        # TODO: after some refactoring this method is still way too hard to
+        # understand and it must be completely changed
+
+        states = []
         type_of_change = None
-        
-        # Get all the subcat members that have a variable
-        member_vars = {}
-        for submember in self.subcat:
-            if submember.var not in [None, "e"]:
-                member_vars[submember.role[0]] = submember.var
-                
-        pred_type = None
+        member_vars = self._get_variables()  # all subcat members that have a variable
         start = []
         end = []
-        for pred in self.vnframe.predicates:
-            if pred.value[0] in ['motion', 'transfer', 'cause', 'transfer_info', \
-                'adjust', 'emotional_state', 'location', 'state', 'wear']:
-                pred_type = pred.value[0]
-                    
+        pred_type = self._find_opposition_predicate()
+        #self._debug0(member_vars, pred_type)
+
         if pred_type:
             equals = []
+            changers = []
+
             for pred in self.vnframe.predicates:
                 if pred.value[0] == 'path_rel': 
-                    # check to see where the object that changes is,
-                    # and where that object is or who owns it
-                    if pred.argtypes[1][1] in member_vars.keys():
-                        changer = pred.argtypes[1][1]       # object that changes
-                        opposition = pred.argtypes[2][1]    # where the object is or who owns it
-                    else:
-                        changer = pred.argtypes[2][1]       # object that changes
-                        opposition = pred.argtypes[1][1]
-                    if pred.argtypes[3][1] == 'ch_of_poss' or pred.argtypes[3][1] == 'ch_of_pos':
-                        type_of_change = "pos"
-                    if pred.argtypes[3][1] == 'ch_of_loc' or pred.argtypes[3][1] == 'ch_of_location':
-                        type_of_change = "loc"
-                    if pred.argtypes[3][1] == 'ch_of_info':
-                        type_of_change = "info"
-                    if pred.argtypes[3][1] == 'ch_of_state':
-                        type_of_change = "state"
-                    if pred.argtypes[0][1] == 'start(E)':
-                        start.append(tuple((changer, opposition)))
-                    if pred.argtypes[0][1] == 'end(E)':
-                        end.append(tuple((changer, opposition)))
+                    changer, opposition = self._set_changer_and_opposition(pred, member_vars)
+                    type_of_change = self._set_type_of_change(pred)
+                    self._update_start_and_end(pred, changer, opposition, start, end)
                 if pred.value[0] == 'equals':
                     equals.append(tuple(value for argtype, value in pred.argtypes))
+            #self._debug1(equals, start, end, member_vars, pred_type)
+
             # Go through all objects that change state, and if beginning and end
-            # are expressed syntactically, create the opposition
-            changers = [] 
+            # are expressed syntactically, create the opposition. (HUH: if I try
+            # to make this one method _add_oppositions_to_states then it chokes
+            # on changer not being available, it is fine with the code below
+            # though)
             for changer_s, opposition_s in start:
-                start_opp = opposition_s
-                if len(equals) > 0:
-                        for pair in equals:
-                            if pair[1] == opposition_s:
-                                start_opp = pair[0]
-                try:
-                    changer_s_var = member_vars[changer_s]
-                except KeyError:
-                    changer_s_var = changer_s
-                try: 
-                    opp_s_var = member_vars[start_opp]
-                except KeyError:
-                    #opp_s_var = start_opp
-                    opp_s_var = '?'
-                is_end = False
-                for changer_e, opposition_e in end:
-                    if changer_s == changer_e:
-                        is_end = True
-                        changers.append(changer_s)
-                        end_opp = opposition_e
-                        if len(equals) > 0:
-                            for pair in equals:
-                                if pair[1] == opposition_e:
-                                    end_opp = pair[0]
-                        try: 
-                            opp_e_var = member_vars[end_opp]
-                        except KeyError:
-                            #opp_e_var = end_opp
-                            opp_e_var = '?'
-                        start_state = State(changer_s_var, opp_s_var)
-                        final_state = State(changer_s_var, opp_e_var)
-                        states.append(tuple((start_state, final_state)))
-                if not is_end:
-                    changers.append(changer)
-                    start_state = State(changer_s_var, opp_s_var)
-                    final_state = State(changer_s_var, "-" + str(opp_s_var))
-                    states.append(tuple((start_state, final_state)))
+                start_opp = self._get_start_opp(equals, opposition_s)
+                self._add_opposition_to_states(end, changers, changer, changer_s,
+                                               equals, member_vars, start_opp, states)
+
             # Check for objects that only appear syntactically as an end        
             for changer, opposition in end:
-                if changer not in changers:
-                    changers.append(changer)
-                    end_opp = opposition
-                    if len(equals) > 0:
-                        for pair in equals:
-                            if pair[1] == opposition:
-                                end_opp = pair[0]
-                    try:
-                        changer_var = member_vars[changer]
-                    except KeyError:
-                        changer_var = changer
-                    try: 
-                        opp_var = member_vars[end_opp]
-                    except KeyError:
-                        #opp_var = end_opp
-                        opp_var = '?'
-                    start_state = State(changer_var, "-" + str(opp_var))
-                    final_state = State(changer_var, opp_var)
-                    states.append(tuple((start_state, final_state)))
+                self._add_opposition_to_states2(changers, changer, opposition, equals, member_vars, states)
+
             # No path_rel predicates
             if len(changers) == 0:
                 changer = '?'
                 for pred in self.vnframe.predicates:
                     if pred.value[0] == pred_type:
                         changer = pred.argtypes[1][1]
-                try:
-                    changer_var = member_vars[changer]
-                except KeyError:
-                    changer_var = changer
+                changer_var = member_vars.get(changer, changer)
                 start_state = State(changer_var, '?')
                 final_state = State(changer_var, '-?')
                 states.append(tuple((start_state, final_state)))
@@ -331,14 +271,135 @@ class GLFrame(object):
         opposition = Opposition(type_of_change, states)
         self.event_structure = EventStructure(states)
         self.qualia = Qualia(pred_type, opposition)
+
+
+    def _get_variables(self):
+        """Returns a dictionary of roles and variables from all elements of the
+        subcategorisation frame. The dictionary is indexed on the roles and
+        variables are integers, for example {'Beneficiary': 0, 'Agent': 1}."""
+        member_vars = {}
+        for submember in self.subcat:
+            #print '  ', submember.var, submember.role
+            if submember.var not in [None, "e"]:
+                member_vars[submember.role[0]] = submember.var
+        return member_vars
+
+    def _find_opposition_predicate(self):
+        """Check whether one of the predicates in the frame is deemed intersting for
+        oppositions.  Returns None if there is no such predicate and returns the
+        predicate value of the last one of those predicates if there is one."""
+        pred_type = None
+        for pred in self.vnframe.predicates:
+            #print '  ', pred
+            if pred.value[0] in ['motion', 'transfer', 'cause', 'transfer_info', \
+                'adjust', 'emotional_state', 'location', 'state', 'wear']:
+                pred_type = pred.value[0]
+        return pred_type
+
+    def _set_type_of_change(self, pred):
+        """Check the argument types of the predicate for certain change predicates, if
+        there is one then return 'pos', 'loc', 'info' or 'state', else return None."""
+        # TODO: this relies on there being at least 4 argtypes in the predicate,
+        # is that kosher?
+        type_of_change = None
+        if pred.argtypes[3][1] == 'ch_of_poss' or pred.argtypes[3][1] == 'ch_of_pos':
+            type_of_change = "pos"
+        if pred.argtypes[3][1] == 'ch_of_loc' or pred.argtypes[3][1] == 'ch_of_location':
+            type_of_change = "loc"
+        if pred.argtypes[3][1] == 'ch_of_info':
+            type_of_change = "info"
+        if pred.argtypes[3][1] == 'ch_of_state':
+            type_of_change = "state"
+        return type_of_change
+
+    def _set_changer_and_opposition(self, pred, member_vars):
+        """Check to see where the object that changes is, and where that object
+        is or who owns it."""
+        # TODO: find out why this works
+        if pred.argtypes[1][1] in member_vars.keys():
+            changer = pred.argtypes[1][1]       # object that changes
+            opposition = pred.argtypes[2][1]    # where the object is or who owns it
+        else:
+            changer = pred.argtypes[2][1]       # object that changes
+            opposition = pred.argtypes[1][1]
+        return changer, opposition
+
+    def _update_start_and_end(self, pred, changer, opposition, start, end):
+        """Add (changer, opposition) pair to start and/or end if predicate includes
+        start(E) or end(E) argtype."""
+        if pred.argtypes[0][1] == 'start(E)':
+            start.append(tuple((changer, opposition)))
+        if pred.argtypes[0][1] == 'end(E)':
+            end.append(tuple((changer, opposition)))
+
+    def _get_start_opp(self, equals, opposition_s):
+        start_opp = opposition_s
+        if len(equals) > 0:
+            for pair in equals:
+                if pair[1] == opposition_s:
+                    start_opp = pair[0]
+        return start_opp
+
+    def _get_end_opp(self, equals, opposition_e):
+        end_opp = opposition_e
+        if len(equals) > 0:
+            for pair in equals:
+                if pair[1] == opposition_e:
+                    end_opp = pair[0]
+        return end_opp
+
+    def _add_opposition_to_states(self, end, changers, changer, changer_s, equals,
+                                  member_vars, start_opp, states):
+        """Adds opposition to states for those cases where both the initial and the
+        final state are expressed."""
+        changer_s_var = member_vars.get(changer_s, changer_s)
+        opp_s_var = member_vars.get(start_opp, '?')
+        is_end = False
+        for changer_e, opposition_e in end:
+            if changer_s == changer_e:
+                is_end = True
+                changers.append(changer_s)
+                end_opp = self._get_end_opp(equals, opposition_e)
+                opp_e_var = member_vars.get(end_opp, '?')
+                start_state = State(changer_s_var, opp_s_var)
+                final_state = State(changer_s_var, opp_e_var)
+                states.append(tuple((start_state, final_state)))
+        if not is_end:
+            changers.append(changer)
+            start_state = State(changer_s_var, opp_s_var)
+            final_state = State(changer_s_var, "-" + str(opp_s_var))
+            states.append(tuple((start_state, final_state)))
+
+    def _add_opposition_to_states2(self, changers, changer, opposition,
+                                   equals, member_vars, states):
+        """Adds opposition to states for those cases where only the final state is
+        expressed."""
+        if changer not in changers:
+            changers.append(changer)
+            end_opp = opposition
+            if len(equals) > 0:
+                for pair in equals:
+                    if pair[1] == opposition:
+                        end_opp = pair[0]
+            changer_var = member_vars.get(changer, changer)
+            opp_var = member_vars.get(end_opp, '?')
+            start_state = State(changer_var, "-" + str(opp_var))
+            final_state = State(changer_var, opp_var)
+            states.append(tuple((start_state, final_state)))
     
-    def __repr__(self):
-        output = "\n\n{ description = " + str(" ".join(self.pri_description)) + \
-                 "\nexample = " + str(self.example[0]) + \
-                 "\nsubcat = " + str(self.subcat) + \
-                 "\nqualia = " + str(self.qualia) + \
-                 "\nevent_structure = {" + str(self.event_structure) + "\t}\n"
-        return output
+    def _debug0(self, member_vars, pred_type):
+        print "\n", self.glverbclass.ID, ' '.join(self.pri_description)
+        print '  ', member_vars
+        print '   pred_type =', pred_type
+
+    def _debug1(self, equals, start, end, member_vars, pred_type):
+        if equals or start or end:
+            print "\n", self.glverbclass.ID, ' '.join(self.pri_description)
+            print "   member_vars = %s" % member_vars 
+            print "   pred_type   = %s" % pred_type
+            print "   equals      = %s" % equals
+            print "   start       = [%s]" % ', '.join(["%s-%s" % (x, y) for x, y in start])
+            print "   end         = [%s]" % ', '.join(["%s-%s" % (x, y) for x, y in end])
 
 
 class SubcatMember(object):
@@ -432,131 +493,14 @@ class Qualia(object):
                str(self.opposition) + "}"
 
 
-def image_schema_search2(verbclasslist, pp_list, sem_list=None):
-    """TODO: Try to find verb classes using image schema"""
-    round_1 = set()
-    for vc in verbclasslist:
-        for frame in vc.frames:
-            for member in frame.subcat:
-                if member.cat == 'PREP':
-                    if len(member.role) != 0:
-                        for role in member.role:
-                            if role in pp_list:
-                                round_1.add((frame, vc.ID))
-    if not sem_list:
-        return sorted(round_1)
-    else:
-        round_2 = set()
-        for frame,vc_id in round_1:
-            for member in frame.subcat:
-                if len(member.role) != 0:
-                    for rol in member.role:
-                        if rol in sem_list:
-                            round_2.add((frame, vc_id))
-    return sorted(round_2)
-
-
-def image_schema_search(verbclasslist, scheme, second_round=True, inclusive=False):
-    """Use an ImageScheme object to find verb frames that match the scheme
-    Optionally allows to make thematic roles inclusive (search results can return
-    verb classes that only have a thematic role, as opposed to requiring a prep
-    or selectional restriction)
-    Optional second round to narrow search results to include only those verb
-    classes that contain the elements from the list of thematic roles"""
-    results = []
-    for vc in verbclasslist:
-        result = set()
-        frame_and_id_list = []
-        for i in range(len(vc.frames)):
-            frame_and_id_list.append((vc.frames[i], i, vc.ID))
-        for subclass in vc.subclasses:
-            sub_frames = recursive_frames(subclass)
-            frame_and_id_list.extend(sub_frames)
-        for frame,frame_num,ID in frame_and_id_list:
-            for member in frame.subcat:
-                if member.cat == "PREP":
-                    if len(member.role) > 0:
-                        if member.role[0] in scheme.pp_list:
-                            result.add((frame, frame_num, ID))
-                    if len(member.sel_res) > 0:
-                        for res in member.sel_res:
-                            if res in scheme.sel_res_list:
-                                result.add((frame, frame_num, ID))
-                if inclusive:
-                    if len(member.role) > 0:
-                        if member.role[0] in scheme.role_list:
-                            result.add((frame, frame_num, ID))
-        if len(result) > 0:
-            results.append((vc.ID, result))
-    if len(scheme.role_list) > 0:
-        if second_round:
-            round_2 = []
-            for vc_id, class_results in results:
-                result = set()
-                for frame,frame_num,ID in class_results:
-                    for member in frame.subcat:
-                        if len(member.role) > 0:
-                            if member.role[0] in scheme.role_list:
-                                result.add((frame, frame_num, ID))
-                if len(result) > 0:
-                    round_2.append((vc_id, result))
-            return sorted(round_2)
-    return sorted(results)
-
-
-def recursive_frames(subclass):
-    frame_and_ids = []
-    for i in range(len(subclass.frames)):
-        frame_and_ids.append((subclass.frames[i], i, subclass.ID))
-    if len(subclass.subclasses) == 0:
-        return frame_and_ids
-    else:
-        for subc in subclass.subclasses:
-            frame_and_ids.extend(recursive_frames(subc))
-        return frame_and_ids
-
-    
-def reverse_image_search(frame, scheme, obligatory_theme=True, theme_only=False):
-    """Checks to see if a particular frame belongs to an image schema
-    Optionally allows to make the check for agreement on thematic roles
-    obligatory.
-    Also optionally allows for the search to return true if the frame only matches
-    a thematic role"""
-    pp = False
-    sr = False
-    tr = False
-    for member in frame.subcat:
-        if member.cat == "PREP":
-            if len(member.role) > 0:
-                if member.role[0] in scheme.pp_list:
-                    pp = True
-            if len(member.sel_res) > 0:
-                for res in member.sel_res:
-                    if res in scheme.sel_res_list:
-                        sr = True
-        if len(member.role) > 0:
-            if member.role[0] in scheme.role_list:
-                tr = True
-    if theme_only:
-        return tr
-    if obligatory_theme:
-        return (pp or sr) and tr
-    else:
-        return (pp or sr)
-
-
-# The following three functions should be moved to writer.py, but they cannot be
-# moved as is because of dependencies to methods in this file.
+# The following five functions should be moved to writer.py, but they cannot be
+# moved as is because of dependencies to methods in this file. Some refactoring
+# is needed.
 
 def pp_image_search_html(verbclasslist, results):
     """Uses a list of [image_search_name, search_results]"""
     INDEX = open('html/image_search_index.html', 'w')
-    INDEX.write("<html>\n")
-    INDEX.write("<head>\n")
-    INDEX.write("<link rel=\"stylesheet\" type=\"text/css\" href=\"style.css\">\n")
-    INDEX.write("</head>\n")
-    INDEX.write("<body>\n")
-    INDEX.write("<table cellpadding=8 cellspacing=0>\n")
+    pp_html_begin(INDEX)
     for result in results:
         scheme = result[0]
         INDEX.write("<tr class=header><td>%s</a>\n" % scheme.name)
@@ -599,19 +543,12 @@ def pp_image_search_html(verbclasslist, results):
                 class_writer = HtmlClassWriter(VNCLASS, verbclass)
                 frame_numbers = sorted([num for num,type in id_dict[ID]])
                 class_writer.write(frames=frame_numbers)
-    INDEX.write("</table>\n")
-    INDEX.write("</body>\n")
-    INDEX.write("</html>\n")
+    pp_html_end(INDEX)
 
 
 def pp_reverse_image_search_html(verbclasslist, frame_list, scheme_list):
     INDEX = open('html/image_search_reverse_index.html', 'w')
-    INDEX.write("<html>\n")
-    INDEX.write("<head>\n")
-    INDEX.write("<link rel=\"stylesheet\" type=\"text/css\" href=\"style.css\">\n")
-    INDEX.write("</head>\n")
-    INDEX.write("<body>\n")
-    INDEX.write("<table cellpadding=8 cellspacing=0>\n")
+    pp_html_begin(INDEX)
     INDEX.write("<tr class=header><td>Reverse Image Search Results:\n</a>")
     for frame,frame_num,ID in sorted(set(frame_list)):
         results = []
@@ -633,19 +570,12 @@ def pp_reverse_image_search_html(verbclasslist, frame_list, scheme_list):
         verbclass = search_by_ID(verbclasslist, ID)
         class_writer = HtmlClassWriter(VNCLASS, verbclass)
         class_writer.write(frames=[frame_num])
-    INDEX.write("</table>\n")
-    INDEX.write("</body>\n")
-    INDEX.write("</html>\n")
+    pp_html_end(INDEX)
 
 
 def pp_reverse_image_bins_html(verbclasslist, frame_list, scheme_list):
     INDEX = open('html/image_search_bins_index.html', 'w')
-    INDEX.write("<html>\n")
-    INDEX.write("<head>\n")
-    INDEX.write("<link rel=\"stylesheet\" type=\"text/css\" href=\"style.css\">\n")
-    INDEX.write("</head>\n")
-    INDEX.write("<body>\n")
-    INDEX.write("<table cellpadding=8 cellspacing=0>\n")
+    pp_html_begin(INDEX)
     image_bins = dict()
     for frame,frame_num,ID in sorted(set(frame_list)):
         results = set()
@@ -670,10 +600,27 @@ def pp_reverse_image_bins_html(verbclasslist, frame_list, scheme_list):
             verbclass = search_by_ID(verbclasslist, ID)
             class_writer = HtmlClassWriter(VNCLASS, verbclass)
             class_writer.write(frames=[frame_num])
-    INDEX.write("</table>\n")
-    INDEX.write("</body>\n")
-    INDEX.write("</html>\n")
+    pp_html_end(INDEX)
 
+
+def pp_html_begin(fh):
+    fh.write("<html>\n")
+    fh.write("<head>\n")
+    fh.write("<link rel=\"stylesheet\" type=\"text/css\" href=\"style.css\">\n")
+    fh.write("</head>\n")
+    fh.write("<body>\n")
+    fh.write("<table cellpadding=8 cellspacing=0>\n")
+
+
+def pp_html_end(fh):
+    fh.write("</table>\n")
+    fh.write("</body>\n")
+    fh.write("</html>\n")
+
+
+# Some test functions, at least test3() and create_schema_to_verbnet_mappings()
+# should be promoted to non-test function and be triggered by command line
+# options or from another script.
 
 def test1(vn_classes):
     """Just print the first class."""
@@ -697,22 +644,17 @@ def test3(vn_classes):
     # TODO. We have three ways of finding classes: doing a search, setting a
     # list manually, and checking a test method on the classes. Should probably
     # use only one way of doing this.
-
     motion_vcs = search_by_predicate(vn_classes, "motion")
     transfer_vcs = search_by_predicate(vn_classes, "transfer")
-
     # possession_results = search(vn_classes, "has_possession")
     # print len(possession_results), [vc.ID for vc in possession_results]
-
     # we only find three with the above so define them manually
     possession = ['berry-13.7', 'cheat-10.6', 'contribute-13.2', 'equip-13.4.2',
                  'exchange-13.6.1', 'fulfilling-13.4.1', 'get-13.5.1', 'give-13.1',
                  'obtain-13.5.2', 'steal-10.5']
     possession_vcs = [vc for vc in vn_classes if vc.ID in possession]
-
     ch_of_state_vcs = [vc for vc in vn_classes if vc.is_change_of_state_class()]
     ch_of_info_vcs = [vc for vc in vn_classes if vc.is_change_of_info_class()]
-
     writer = HtmlWriter()
     writer.write(motion_vcs + transfer_vcs, 'VN Motion Classes', 'motion')
     writer.write(possession_vcs, 'VN Posession Classes', 'poss')
@@ -721,117 +663,65 @@ def test3(vn_classes):
     writer.finish()
 
 
-
-def test_ch_of_searches():
+def test_ch_of_searches(vn_classes):
     # find all 'ch_of_' verb classes
-    ch_of_results = search_by_argtype(vn_classes, 'ch_of_', True)
-    print '\nch_of_\n', ch_of_results, len(ch_of_results)
-    results = search_by_argtype(vn_classes, 'ch_of_info')
-    print '\nch_of_info\n', results, len(results)
-    results = search_by_argtype(vn_classes, 'ch_of_pos')
-    print '\nch_of_pos\n', results, len(results)
-    results = search_by_argtype(vn_classes, 'ch_of_poss')
-    print '\nch_of_poss\n', results, len(results)
-    results = search_by_argtype(vn_classes, 'ch_of_state')
-    print '\nch_of_state\n', results, len(results)
-    results = search_by_argtype(vn_classes, 'ch_of_loc')
-    print '\nch_of_loc\n', results, len(results)
-    results = search_by_argtype(vn_classes, 'ch_of_location')
-    print '\nch_of_location\n', results, len(results)
-    # print search_by_ID(vn_classes, 'give', True)[0]
-    # transfer possession verbs
-    # transpos = search_by_argtype(transfer_results, 'ch_of_pos', True)
-    # print '\nTransfer Possession:\n', transpos, len(transpos)
-    # path_rel_results = search(vn_classes, "path_rel")
-    # print '\nNumber of path_rel classes:\n', len(path_rel_results)
-    # path_less_ch = [vc.ID for vc in path_rel_results if vc.ID not in ch_of_results]
-    # print '\npath_rel classes with no ch_of\n', path_less_ch
+    print
+    for argtype in ('ch_of_', 'ch_of_info', 'ch_of_pos', 'ch_of_poss',
+                    'ch_of_state', 'ch_of_loc', 'ch_of_location'):
+        results = search_by_argtype(vn_classes, argtype)
+        print "%s %s %s\n" % (len(results), argtype, ' '.join(results))
+    path_rel_results = search_by_argtype(vn_classes, "path_rel")
+    print 'number of path_rel classes:', len(path_rel_results)
+    path_less_ch = [vc.ID for vc in path_rel_results if vc.ID not in ch_of_results]
+    print 'path_rel classes with no ch_of:', path_less_ch, "\n"
+
+
+def test_new_searches(vn_classes):
+    for print_string, function, role_list, boolean in [
+            ("Verbclasses with Agent and Patient thematic roles:", search_by_themroles, ['Agent', 'Patient'], False),
+            ('Agent and Patient only classes:', search_by_themroles, ['Agent', 'Patient'], True),
+            ("Verbclasses with frames with NP and VERB syntactic roles:", search_by_POS, ['NP', 'VERB'], False),
+            ('NP and VERB only classes:', search_by_POS, ['NP', 'VERB'], True),
+            ("Verbclasses with frames with (NP, Agent) subcat members:", search_by_cat_and_role, [('NP', 'Agent')], False),
+            ('(NP, Agent) and (PREP, None) classes:', search_by_cat_and_role, [('NP', 'Agent'), ('PREP', 'None')], False),
+            ('(NP, Agent) and (VERB, None) only classes:', search_by_cat_and_role, [('NP', 'Agent'), ('VERB', 'None')], True) ]:
+        results = function(vn_classes, role_list, boolean)
+        ids = []
+        if results:
+            ids = [vc.ID for vc in results] if isinstance(results[0], GLVerbClass) \
+                  else [ID for frame, ID in results]
+            ids = sorted(list(set(ids)))
+        print "\nThere are %s cases of %s" % (len(ids), print_string)
+        print '  ', "\n   ".join([id for id in ids])
+
     
-
-def test_new_searches():
-    print "\n\nVerbclasses with Agent and Patient thematic roles:"
-    them_results = search_by_themroles(vn_classes, ['Agent', 'Patient'])
-    print '\n', [vc.ID for vc in them_results], '\n', len(them_results)
-    them_results2 = search_by_themroles(vn_classes, ['Agent', 'Patient'], True)
-    print '\nAgent and Patient only classes:\n\n', [vc.ID for vc in them_results2]
-    print len(them_results2)
-    print "\n\nVerbclasses with frames with NP and VERB syntactic roles:"
-    pos_results = search_by_POS(vn_classes, ['NP', 'VERB'])
-    print '\n', len(pos_results)
-    pos_results2 = search_by_POS(vn_classes, ['NP', 'VERB'], True)
-    print '\nNP and VERB only classes:\n\n', [ID for frame,ID in pos_results2]
-    print len(pos_results2)
-    print "\n\nVerbclasses with frames with (NP, Agent) subcat members:"
-    catrole_results = search_by_cat_and_role(vn_classes, [('NP', 'Agent')] )
-    print '\n', len(catrole_results)
-    catrole_results2 = search_by_cat_and_role(vn_classes, [('NP', 'Agent'), ('PREP', 'None')] )
-    print '\n(NP, Agent) and (PREP, None) classes:\n\n', [ID for frame,ID in catrole_results2]
-    print len(catrole_results2)
-    catrole_results3 = search_by_cat_and_role(vn_classes, [('NP', 'Agent'), ('VERB', 'None')], True )
-    print '\n(NP, Agent) and (VERB, None) only classes:\n\n', [ID for frame,ID in catrole_results3]
-    print len(catrole_results3)
-    
-    
-def test_image_searches():
-
-    print "\nin at on destination:\n"
-    destination_results = image_schema_search2(vn_classes, ['in', 'at', 'on'], ['Destination'])
-    print [vcid for frame,vcid in destination_results], len(destination_results)
-
-    print "\nin at on location:\n"
-    location_results = image_schema_search2(vn_classes, ['in', 'at', 'on'], ['Location'])
-    print [vcid for frame,vcid in location_results], len(location_results)
-
+def test_image_searches(vn_classes):
     # figure out left-of right-of
-
-    print "\nnear far:\n"
-    nearfar_results = image_schema_search2(vn_classes, ['near', 'far'])
-    print [vcid for frame,vcid in nearfar_results], len(nearfar_results)
-
-    print "\nup-down:\n"
-    updown_results = image_schema_search2(vn_classes, ['up', 'down', 'above', 'below'])
-    print [vcid for frame,vcid in updown_results], len(updown_results)
-
-    print "\nContact No-Contact on in:\n"
-    contact_results = image_schema_search2(vn_classes, ['on', 'in'])
-    print [vcid for frame,vcid in contact_results], len(contact_results)
-
-    print "\nFront/Behind:\n"
-    front_results = image_schema_search2(vn_classes, ['front', 'behind'])
-    print [vcid for frame,vcid in front_results], len(front_results)
-
-    #figure out advs of speed
-
-    print "\nPath along on:\n"
-    path_results = image_schema_search2(vn_classes, ['along', 'on'])
-    print [vcid for frame,vcid in path_results], len(path_results)
-
-    print "\nSource from:\n"
-    source_results = image_schema_search2(vn_classes, ['from'], ['Initial_Location'])
-    print [vcid for frame,vcid in source_results], len(source_results)
-
-    print "\nEnd at to:\n"
-    end_results = image_schema_search2(vn_classes, ['at', 'to'], ['Destination'])
-    print [vcid for frame,vcid in end_results], len(end_results)
-
-    print "\nDirectional toward away for:\n"
-    directional_results = image_schema_search2(vn_classes, ['toward', 'away', 'for'], ['Source'])
-    print [vcid for frame,vcid in directional_results], len(directional_results)
-
-    print "\nContainer in inside:\n"
-    container_results = image_schema_search2(vn_classes, ['in', 'inside'])
-    print [vcid for frame,vcid in container_results], len(container_results)
-
-    print "\nSurface over on:\n"
-    surface_results = image_schema_search2(vn_classes, ['over', 'on'])
-    print [vcid for frame,vcid in surface_results], len(surface_results)
+    # figure out advs of speed
+    print
+    for print_string, pp_list, sem_list in [
+            ("in at on destination:", ['in', 'at', 'on'], ['Destination']),
+            ("in at on location:", ['in', 'at', 'on'], ['Location']),
+            ("near far:", ['near', 'far'], None),
+            ("up-down:", ['up', 'down', 'above', 'below'], None),
+            ("Contact No-Contact on in:", ['on', 'in'], None),
+            ("Front/Behind:", ['front', 'behind'], None),
+            ("Path along on:", ['along', 'on'], None),
+            ("Source from:", ['from'], ['Initial_Location']),
+            ("End at to:", ['at', 'to'], ['Destination']),
+            ("Directional toward away for:", ['toward', 'away', 'for'], ['Source']),
+            ("Container in inside:", ['in', 'inside'], None),
+            ("Surface over on:", ['over', 'on'], None) ]:
+        results = image_schema_search2(vn_classes, pp_list, sem_list)
+        print print_string
+        print [vcid for frame, vcid in results], len(results), "\n"
 
     
-def test_search_by_ID():
+def test_search_by_ID(vn_classes):
     print search_by_ID(vn_classes, "swarm-47.5.1").subclasses[1]
 
-    
-def new_image_searches():
+
+def new_image_searches(vn_classes):
     results = []
     for scheme in SCHEME_LIST:
         result = image_schema_search(vn_classes, scheme)
@@ -839,8 +729,8 @@ def new_image_searches():
     return results
 
 
-def reverse_image_frame_list():
-    image_results = new_image_searches()
+def reverse_image_frame_list(vn_classes):
+    image_results = new_image_searches(vn_classes)
     frame_list = []
     for scheme, results in image_results:
         for vc_id, class_results in results:
@@ -849,9 +739,9 @@ def reverse_image_frame_list():
     return frame_list
 
 
-def create_schema_to_verbnet_mappings():
-    image_results = new_image_searches()
-    frames = reverse_image_frame_list()
+def create_schema_to_verbnet_mappings(vn_classes):
+    image_results = new_image_searches(vn_classes)
+    frames = reverse_image_frame_list(vn_classes)
     pp_image_search_html(vn_classes, image_results)
     pp_reverse_image_search_html(vn_classes, frames, SCHEME_LIST)
     pp_reverse_image_bins_html(vn_classes, frames, SCHEME_LIST)
@@ -860,17 +750,17 @@ def create_schema_to_verbnet_mappings():
 
 if __name__ == '__main__':
 
-    vn = VerbNetParser()
-    #vn = VerbNetParser(max_count=50)
+    debug = True
+    vn = VerbNetParser(max_count=50) if debug else VerbNetParser()
     vn_classes = [GLVerbClass(vc) for vc in vn.verb_classes]
 
-    test1(vn_classes)
-    test2(vn_classes)
-    #test3(vn_classes)
+    #test1(vn_classes)
+    #test2(vn_classes)
+    test3(vn_classes)
 
-    #test_ch_of_searches()
-    #test_new_searches()
-    test_image_searches()
-    #test_search_by_ID()
+    #test_ch_of_searches(vn_classes)
+    #test_new_searches(vn_classes)
+    #test_image_searches(vn_classes)
+    #test_search_by_ID(vn_classes)
 
-    #create_schema_to_verbnet_mappings()
+    #create_schema_to_verbnet_mappings(vn_classes)
