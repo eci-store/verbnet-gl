@@ -15,11 +15,7 @@ To run this do the following:
 import os, itertools
 
 from verbnetparser import VerbNetParser
-from imageschema import SCHEME_LIST
 from writer import HtmlWriter, HtmlClassWriter
-#from writer import pp_image_search_html
-#from writer import pp_reverse_image_search_html
-#from writer import pp_reverse_image_bins_html
 from search import search_by_predicate, search_by_argtype
 from search import search_by_ID, search_by_subclass_ID
 from search import search_by_themroles, search_by_POS, search_by_cat_and_role
@@ -187,7 +183,8 @@ class GLFrame(object):
         opposition = Opposition('loc', [[initial_state, final_state]])
         self.events = EventStructure([[initial_state, final_state]])
         self.qualia = Qualia('motion', opposition)
-        self._debug1(agent, moving_object, initial_location, destination, initial_state, final_state)
+        #self._debug1(agent, moving_object, initial_location, destination,
+        #             initial_state, final_state)
 
     def _get_moving_object(self):
         """Get the role and the index of the moving object. Assumes that the moving
@@ -195,8 +192,8 @@ class GLFrame(object):
         motion_predicates = self.find_predicates('motion')
         if motion_predicates:
             args = self.find_arguments(motion_predicates[0], 'Theme')
-            if not args:
-                print "WARNING: missing Theme in Motion predicate", self
+            #if not args:
+            #    print "WARNING: missing Theme in Motion predicate", self
         else:
             print "WARNING: no Motion predicate found in", self
         return ['Theme', str(self.role2var.get('Theme', '?'))]
@@ -248,7 +245,8 @@ class GLFrame(object):
             % (indent * ' ',
                ', '.join(["%s(%s)" % (r, v) for r, v in self.role2var.items()]))
 
-    def _debug1(self, agent, moving_object, initial_location, destination, initial_state, final_state):
+    def _debug1(self, agent, moving_object, initial_location, destination,
+                initial_state, final_state):
         if self.glverbclass.ID in ('run-51.3.2', 'slide.11.2', 'snooze-40.4'):
             print; print self;
             self.pp_predicates(3); self.pp_subcat(3), self.pp_variables(3)
@@ -391,131 +389,6 @@ class Qualia(object):
                str(self.opposition) + "}"
 
 
-# The following five functions should be moved to writer.py, but they cannot be
-# moved as is because of dependencies to methods in this file. Some refactoring
-# is needed.
-
-def pp_image_search_html(verbclasslist, results):
-    """Uses a list of [image_search_name, search_results]"""
-    INDEX = open('html/image_search_index.html', 'w')
-    pp_html_begin(INDEX)
-    for result in results:
-        scheme = result[0]
-        INDEX.write("<tr class=header><td>%s</a>\n" % scheme.name)
-        INDEX.write("<tr class=header><td>PP List: %s</a>\n" % scheme.pp_list)
-        INDEX.write("<tr class=header><td>Selectional Restrictions: %s</a>\n" % scheme.sel_res_list)
-        INDEX.write("<tr class=header><td>Thematic Roles: %s</a>\n" % scheme.role_list)
-        if len(results[1]) == 0:
-            INDEX.write("<tr class=body><td>No Results\n")
-        for vc_id, class_results in result[1]:
-            id_dict = {}
-            for frame,frame_num,ID in class_results:
-                results_type = []
-                for member in frame.subcat:
-                    if member.cat == "PREP":
-                        if len(member.role) > 0:
-                            if member.role[0] in scheme.pp_list:
-                                results_type.append("PP")
-                        if len(member.sel_res) > 0:
-                            for res in member.sel_res:
-                                if res in scheme.sel_res_list:
-                                    results_type.append("SR")
-                    if len(member.role) > 0:
-                        if member.role[0] in scheme.role_list:
-                            results_type.append("TR")
-                if ID in id_dict:
-                    id_dict[ID].append((frame_num, results_type))
-                else:
-                    id_dict[ID] = [(frame_num, results_type)]
-            for ID in id_dict.keys():
-                class_file = "imageresult-%s.html" % ID
-                INDEX.write("<tr class=body><td><a href=\"%s\">%s</a>\n" % (class_file, ID))
-                INDEX.write("  <td>")
-                for frame_num,results_type in sorted(id_dict[ID]):
-                    INDEX.write("Frame %s" % frame_num)
-                    for result in results_type:
-                        INDEX.write("<sup>%s</sup> " % result)
-                    INDEX.write("&emsp;")
-                VNCLASS = open("html/%s" % class_file, 'w')
-                verbclass = search_by_ID(verbclasslist, ID)
-                class_writer = HtmlClassWriter(VNCLASS, verbclass)
-                frame_numbers = sorted([num for num,type in id_dict[ID]])
-                class_writer.write(frames=frame_numbers)
-    pp_html_end(INDEX)
-
-
-def pp_reverse_image_search_html(verbclasslist, frame_list, scheme_list):
-    INDEX = open('html/image_search_reverse_index.html', 'w')
-    pp_html_begin(INDEX)
-    INDEX.write("<tr class=header><td>Reverse Image Search Results:\n</a>")
-    for frame,frame_num,ID in sorted(set(frame_list)):
-        results = []
-        for scheme in scheme_list:
-            if reverse_image_search(frame, scheme):
-                results.append(scheme.name)
-        INDEX.write("<tr class=body><td>%s</a>" % ID)
-        class_file = "imageresultreverse-%s_frame%s.html" % (ID, frame_num)
-        INDEX.write("<a href=\"%s\"> - Frame %s</a>" % (class_file, frame_num))
-        INDEX.write("  <td>")
-        if len(results) == 0:
-            INDEX.write("-\n")
-        for i in range(len(results)):
-            if i < len(results) - 1:
-                INDEX.write("%s, " % results[i])
-            else:
-                INDEX.write("%s\n" % results[i])
-        VNCLASS = open("html/%s" % class_file, 'w')
-        verbclass = search_by_ID(verbclasslist, ID)
-        class_writer = HtmlClassWriter(VNCLASS, verbclass)
-        class_writer.write(frames=[frame_num])
-    pp_html_end(INDEX)
-
-
-def pp_reverse_image_bins_html(verbclasslist, frame_list, scheme_list):
-    INDEX = open('html/image_search_bins_index.html', 'w')
-    pp_html_begin(INDEX)
-    image_bins = dict()
-    for frame,frame_num,ID in sorted(set(frame_list)):
-        results = set()
-        for scheme in scheme_list:
-            if reverse_image_search(frame, scheme):
-                results.add(scheme.name)
-        if frozenset(results) in image_bins.keys():
-            image_bins[frozenset(results)].append((frame, frame_num, ID))
-        else:
-            image_bins[frozenset(results)] = [(frame, frame_num, ID)]
-    for bin in image_bins.keys():
-        INDEX.write("<tr class=header><td></a>")
-        if len(bin) == 0:
-            INDEX.write("PP Only Frames:")
-        for scheme in bin:
-            INDEX.write("%s&emsp;" % scheme)
-        INDEX.write("<tr class=body><td></a>")
-        for frame, frame_num, ID in image_bins[bin]:
-            class_file = "imageresultbins-%s_frame%s.html" % (ID, frame_num)
-            INDEX.write("<a href=\"%s\">%s<sup>%s&emsp;</sup></a>" % (class_file, ID, frame_num))
-            VNCLASS = open("html/%s" % class_file, 'w')
-            verbclass = search_by_ID(verbclasslist, ID)
-            class_writer = HtmlClassWriter(VNCLASS, verbclass)
-            class_writer.write(frames=[frame_num])
-    pp_html_end(INDEX)
-
-
-def pp_html_begin(fh):
-    fh.write("<html>\n")
-    fh.write("<head>\n")
-    fh.write("<link rel=\"stylesheet\" type=\"text/css\" href=\"style.css\">\n")
-    fh.write("</head>\n")
-    fh.write("<body>\n")
-    fh.write("<table cellpadding=8 cellspacing=0>\n")
-
-
-def pp_html_end(fh):
-    fh.write("</table>\n")
-    fh.write("</body>\n")
-    fh.write("</html>\n")
-
-
 # Some test functions, at least test3() and create_schema_to_verbnet_mappings()
 # should be promoted to non-test functions and be triggered by command line
 # options or from another script.
@@ -561,6 +434,10 @@ def test3(vn_classes):
     writer.finish()
 
 
+def test_search_by_ID(vn_classes):
+    print search_by_ID(vn_classes, "swarm-47.5.1").subclasses[1]
+
+
 def test_ch_of_searches(vn_classes):
     # find all 'ch_of_' verb classes
     print
@@ -592,58 +469,6 @@ def test_new_searches(vn_classes):
         print "\nThere are %s cases of %s" % (len(ids), print_string)
         print '  ', "\n   ".join([id for id in ids])
 
-    
-def test_image_searches(vn_classes):
-    # figure out left-of right-of
-    # figure out advs of speed
-    print
-    for print_string, pp_list, sem_list in [
-            ("in at on destination:", ['in', 'at', 'on'], ['Destination']),
-            ("in at on location:", ['in', 'at', 'on'], ['Location']),
-            ("near far:", ['near', 'far'], None),
-            ("up-down:", ['up', 'down', 'above', 'below'], None),
-            ("Contact No-Contact on in:", ['on', 'in'], None),
-            ("Front/Behind:", ['front', 'behind'], None),
-            ("Path along on:", ['along', 'on'], None),
-            ("Source from:", ['from'], ['Initial_Location']),
-            ("End at to:", ['at', 'to'], ['Destination']),
-            ("Directional toward away for:", ['toward', 'away', 'for'], ['Source']),
-            ("Container in inside:", ['in', 'inside'], None),
-            ("Surface over on:", ['over', 'on'], None) ]:
-        results = image_schema_search2(vn_classes, pp_list, sem_list)
-        print print_string
-        print [vcid for frame, vcid in results], len(results), "\n"
-
-
-def test_search_by_ID(vn_classes):
-    print search_by_ID(vn_classes, "swarm-47.5.1").subclasses[1]
-
-
-def new_image_searches(vn_classes):
-    results = []
-    for scheme in SCHEME_LIST:
-        result = image_schema_search(vn_classes, scheme)
-        results.append((scheme, result))
-    return results
-
-
-def reverse_image_frame_list(vn_classes):
-    image_results = new_image_searches(vn_classes)
-    frame_list = []
-    for scheme, results in image_results:
-        for vc_id, class_results in results:
-            for frame,frame_num,ID in class_results:
-                frame_list.append((frame, frame_num, ID))
-    return frame_list
-
-
-def create_schema_to_verbnet_mappings(vn_classes):
-    image_results = new_image_searches(vn_classes)
-    frames = reverse_image_frame_list(vn_classes)
-    pp_image_search_html(vn_classes, image_results)
-    pp_reverse_image_search_html(vn_classes, frames, SCHEME_LIST)
-    pp_reverse_image_bins_html(vn_classes, frames, SCHEME_LIST)
-
 
 def print_motion_classes():
     """Print a list of all classes that have a motion frame."""
@@ -664,17 +489,15 @@ if __name__ == '__main__':
     vn_classes = [GLVerbClass(vc) for vc in vn.verb_classes]
 
     test_gl_code = True
-    test_image_code = False
-    test_image_code = True
+    test_search_code = False
+    #test_search_code = True
 
     if test_gl_code:
         #test1(vn_classes)
         #test2(vn_classes)
         test3(vn_classes)
 
-    if test_image_code:
+    if test_search_code:
+        #test_search_by_ID(vn_classes)
         test_ch_of_searches(vn_classes)
         test_new_searches(vn_classes)
-        test_image_searches(vn_classes)
-        #test_search_by_ID(vn_classes)
-        create_schema_to_verbnet_mappings(vn_classes)
