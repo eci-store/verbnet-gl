@@ -122,7 +122,7 @@ class GLFrame(object):
         self.pri_description = frame.primary    # list of unicode strings
         self.sec_description = frame.secondary  # list of unicode strings
         self.example = frame.examples           # list of unicode strings
-        self.subcat = self.subcat()             # list of SubcatMember
+        self.subcat = Subcat(self)
         self.qualia = None
         self.events = EventStructure()
         self.add_oppositions()
@@ -137,32 +137,6 @@ class GLFrame(object):
             "\nsubcat = " + str(self.subcat) + \
             "\nqualia = " + str(self.qualia) + \
             "\nevents = {" + str(self.events) + "\t}\n"
-
-    def subcat(self):
-        """Creates the subcat frame structure with unique variables assigned to
-        different phrases/roles"""
-        i = 0
-        members = []
-        for synrole in self.vnframe.syntax:
-            if synrole.POS in ["ADV", "PREP", "ADJ"]:
-                members.append(SubcatMember(None, synrole, None))
-                continue
-            elif synrole.POS == "VERB":
-                members.append(SubcatMember("e", synrole, None))
-                continue
-            added = False
-            for themrole in self.class_roles:
-                if str(synrole.value[0]).lower() == str(themrole.role_type).lower():
-                    if str(synrole.POS) == "NP":
-                        members.append(SubcatMember(i, synrole, themrole))
-                        i += 1
-                        added = True
-                    else:
-                        members.append(SubcatMember(None, synrole, themrole))
-                        added = True
-            if not added:
-                members.append(SubcatMember(None, synrole, None))
-        return members
 
     def find_predicates(self, pred_value):
         """Returns the list of Predicates where the value equals pred_value."""
@@ -180,9 +154,13 @@ class GLFrame(object):
         return True if self.find_predicates('motion') else False
 
     def add_oppositions(self):
+        """Add oppositions for each frame to event and qualia structure."""
+        # TODO: maybe pull this all out and add it to a OppositionFactory class
         # use an auxiliary dictionary that has mappings from role names to
         # variables, taken from the subcat frame
         self.role2var = self._get_variables()
+        # so for now we just do motion verbs, will add more, but need to decide
+        # whether the groups of classes we do this for are disjoint or not
         if self.is_motion_frame():
             self._add_motion_opposition()
 
@@ -197,28 +175,19 @@ class GLFrame(object):
         return member_vars
 
     def _add_motion_opposition(self):
-        if self.is_motion_frame():
-            initial_location, destination = None, None
-            moving_object = self._get_moving_object()
-            agent = self._get_agent()
-            initial_location = self._get_initial_location()
-            destination = self._get_destination()
-            self._add_default_opposition(initial_location, destination)
-            initial_state = State(moving_object[1], initial_location[1])
-            final_state = State(moving_object[1], destination[1])
-            opposition = Opposition('loc', [[initial_state, final_state]])
-            self.events = EventStructure([[initial_state, final_state]])
-            self.qualia = Qualia('motion', opposition)
-            if self.glverbclass.ID in ('run-51.3.2', 'slide.11.2'):
-                return
-                print; print self;
-                self.pp_predicates(3); self.pp_subcat(3), self.pp_variables(3)
-                print '   agent  =', agent
-                print '   object =', moving_object
-                print '   start  =', initial_location
-                print '   end    =', destination
-                print '  ', initial_state
-                print '  ', final_state
+        """Add motion opposition to wualia and event structure of motion frames."""
+        initial_location, destination = None, None
+        moving_object = self._get_moving_object()
+        agent = self._get_agent()
+        initial_location = self._get_initial_location()
+        destination = self._get_destination()
+        self._add_default_opposition(initial_location, destination)
+        initial_state = State(moving_object[1], initial_location[1])
+        final_state = State(moving_object[1], destination[1])
+        opposition = Opposition('loc', [[initial_state, final_state]])
+        self.events = EventStructure([[initial_state, final_state]])
+        self.qualia = Qualia('motion', opposition)
+        self._debug1(agent, moving_object, initial_location, destination, initial_state, final_state)
 
     def _get_moving_object(self):
         """Get the role and the index of the moving object. Assumes that the moving
@@ -278,6 +247,56 @@ class GLFrame(object):
         print "%svariables = { %s }" \
             % (indent * ' ',
                ', '.join(["%s(%s)" % (r, v) for r, v in self.role2var.items()]))
+
+    def _debug1(self, agent, moving_object, initial_location, destination, initial_state, final_state):
+        if self.glverbclass.ID in ('run-51.3.2', 'slide.11.2', 'snooze-40.4'):
+            print; print self;
+            self.pp_predicates(3); self.pp_subcat(3), self.pp_variables(3)
+            print '   agent  =', agent
+            print '   object =', moving_object
+            print '   start  =', initial_location
+            print '   end    =', destination
+            print '  ', initial_state
+            print '  ', final_state
+
+
+class Subcat(object):
+
+    """Class that contains the GL subcategorisation frame, which is basically taken
+    from the Verbnet syntax except that it adds variables to some of the subcat
+    elements."""
+
+    def __init__(self, glframe):
+        """Creates the subcat frame structure with unique variables assigned to
+        different phrases/roles"""
+        self.glframe = glframe
+        self.members = []
+        i = 0
+        for synrole in self.glframe.vnframe.syntax:
+            if synrole.POS in ["ADV", "PREP", "ADJ"]:
+                self.members.append(SubcatMember(None, synrole, None))
+                continue
+            elif synrole.POS == "VERB":
+                self.members.append(SubcatMember("e", synrole, None))
+                continue
+            added = False
+            for themrole in self.glframe.class_roles:
+                if str(synrole.value[0]).lower() == str(themrole.role_type).lower():
+                    if str(synrole.POS) == "NP":
+                        self.members.append(SubcatMember(i, synrole, themrole))
+                        i += 1
+                        added = True
+                    else:
+                        self.members.append(SubcatMember(None, synrole, themrole))
+                        added = True
+            if not added:
+                self.members.append(SubcatMember(None, synrole, None))
+
+    def __iter__(self):
+        return iter(self.members)
+
+    def __len__(self):
+        return len(self.members)
 
 
 class SubcatMember(object):
@@ -640,12 +659,13 @@ if __name__ == '__main__':
 
     vn = VerbNetParser(max_count=50)
     vn = VerbNetParser(file_list='list-motion-classes.txt')
-    vn = VerbNetParser(file_list='list-random.txt')
+    #vn = VerbNetParser(file_list='list-random.txt')
     #vn = VerbNetParser()
     vn_classes = [GLVerbClass(vc) for vc in vn.verb_classes]
 
     test_gl_code = True
     test_image_code = False
+    test_image_code = True
 
     if test_gl_code:
         #test1(vn_classes)
@@ -656,5 +676,5 @@ if __name__ == '__main__':
         test_ch_of_searches(vn_classes)
         test_new_searches(vn_classes)
         test_image_searches(vn_classes)
-        test_search_by_ID(vn_classes)
+        #test_search_by_ID(vn_classes)
         create_schema_to_verbnet_mappings(vn_classes)
