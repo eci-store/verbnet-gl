@@ -59,6 +59,34 @@ from xml.dom.minidom import parse, Node
 VERBNET_URL = 'http://verbs.colorado.edu/vn3.2.4-test-uvi/vn/'
 
 
+TEXT_HEAD = """
+<head>
+<style>
+dt { margin-top: 12pt; margin-bottom: 5pt; }
+dd { margin-bottom: 8pt; }
+.classname { font-size: 120% }
+.pred { color: darkred; font-weight: bold; font-variant: small-caps; font-size: 125%; }
+.role { color: darkblue; font-weight: bold; }
+.example { font-style: italic; }
+.synsem { display: block; margin-left: 20pt; margin-top: 3pt; }
+.boxed { border: thin dotted grey; padding: 3pt; }
+</style>
+</head>
+"""
+
+TEXT_MISSING_LINKS = """
+<p>This lists all occurrences where the thematic roles expressed in the syntax
+of a frame are not the same as those in the semantics. The links lead to pages
+at <a href="http://verbs.colorado.edu/vn3.2.4-test-uvi/vn/"
+>http://verbs.colorado.edu/vn3.2.4-test-uvi/vn/</a>. Those pages are not always
+based on the same XML files as used by these diagnostics. This is for example
+the case for the admit verb class. The XML files for these diagnostics have
+admit-65.xml for this class, but online we have admit-64.3.php, a slightly
+earlier version. As a result, clicking the admit-65 link will give a
+page-not-found error.</p>
+"""
+
+
 # A few abbreviations of dom methods
 
 def get_attr(node, attr):
@@ -173,7 +201,7 @@ class VerbClass(VerbNetObject):
         if fh is None:
             fh = sys.stdout
         fh.write("<html>\n")
-        fh.write(open('text-head.html').read())
+        fh.write(TEXT_HEAD)
         fh.write("<body>\n\n")
         fh.write("<h2>%s</h2>\n\n" % self.classname)
         for frame in self.frames:
@@ -329,10 +357,10 @@ class PredicateStatistics(object):
     def print_missing_links(self, fname=None):
         fh = sys.stdout if fname is None else open(fname, 'w')
         fh.write("<html>\n")
-        fh.write(open('text-head.html').read())
+        fh.write(TEXT_HEAD)
         fh.write("<body>\n\n")
         fh.write("<h2>Role mismatches</h2>\n\n")
-        fh.write(open('text-missing-links-p1.html').read())
+        fh.write(TEXT_MISSING_LINKS)
         fh.write("\n<div class=boxed>Verb classes with missing roles\n" +
                  "<blockquote>\n")
         for classname in sorted(self.missing_links.keys()):
