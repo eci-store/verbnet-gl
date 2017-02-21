@@ -74,6 +74,7 @@ class GLVerbClass(object):
     
 
 class GLSubclass(GLVerbClass):
+
     """Represents a subclass to a GLVerbClass. This needs to be different from
     GLVerbClass because VerbNet seems to change the THEMROLES section of the 
     subclass to only include thematic roles that differ from the main class,
@@ -123,11 +124,8 @@ class GLFrame(object):
         self.example = frame.examples           # list of unicode strings
         self.subcat = self.subcat()             # list of SubcatMember
         self.qualia = None
-        self.event_structure = EventStructure()
-        self.role2var = None                    # auxiliary dictionary
-        #self.event_and_opposition_structure2()
-        #self.XXX_event_and_opposition_structure()
-        self.set_motion_opposition()
+        self.events = EventStructure()
+        self.add_oppositions()
 
     def __str__(self):
         return "<GLFrame %s [%s] '%s'>" % \
@@ -138,7 +136,7 @@ class GLFrame(object):
             "\nexample = " + str(self.example[0]) + \
             "\nsubcat = " + str(self.subcat) + \
             "\nqualia = " + str(self.qualia) + \
-            "\nevent_structure = {" + str(self.event_structure) + "\t}\n"
+            "\nevents = {" + str(self.events) + "\t}\n"
 
     def subcat(self):
         """Creates the subcat frame structure with unique variables assigned to
@@ -165,200 +163,6 @@ class GLFrame(object):
             if not added:
                 members.append(SubcatMember(None, synrole, None))
         return members
-    
-
-    def event_and_opposition_structure2(self):
-        """Uses the frame information to determine what initial and final states
-        should look like, given the variables available in the subcat frame, and
-        the roles for the verb class."""
-
-        # TODO: after some refactoring this method is still way too hard to
-        # understand and it must be completely changed
-
-        states = []
-        type_of_change = None
-        member_vars = self._get_variables()  # all subcat members that have a variable
-        start = []
-        end = []
-        pred_type = self._find_opposition_predicate()
-        #self._debug0(member_vars, pred_type)
-
-        if pred_type:
-            equals = []
-            changers = []
-
-            for pred in self.vnframe.predicates:
-                if pred.value[0] == 'path_rel': 
-                    changer, opposition = self._set_changer_and_opposition(pred, member_vars)
-                    #print pred
-                    #print '   changer', changer
-                    #print '   opposition', opposition
-                    type_of_change = self._set_type_of_change(pred)
-                    self._update_start_and_end(pred, changer, opposition, start, end)
-                if pred.value[0] == 'equals':
-                    equals.append(tuple(value for argtype, value in pred.argtypes))
-            #self._debug1(equals, start, end, member_vars, pred_type)
-
-            # Go through all objects that change state, and if beginning and end
-            # are expressed syntactically, create the opposition. (HUH: if I try
-            # to make this one method _add_oppositions_to_states then it chokes
-            # on changer not being available, it is fine with the code below
-            # though)
-            for changer_s, opposition_s in start:
-                start_opp = self._get_start_opp(equals, opposition_s)
-                self._add_opposition_to_states(end, changers, changer, changer_s,
-                                               equals, member_vars, start_opp, states)
-
-            # Check for objects that only appear syntactically as an end        
-            for changer, opposition in end:
-                self._add_opposition_to_states2(changers, changer, opposition, equals, member_vars, states)
-
-            # No path_rel predicates
-            if len(changers) == 0:
-                changer = '?'
-                for pred in self.vnframe.predicates:
-                    if pred.value[0] == pred_type:
-                        changer = pred.argtypes[1][1]
-                changer_var = member_vars.get(changer, changer)
-                start_state = State(changer_var, '?')
-                final_state = State(changer_var, '-?')
-                states.append(tuple((start_state, final_state)))
-                    
-        opposition = Opposition(type_of_change, states)
-        print self
-        self.event_structure = EventStructure(states)
-        self.qualia = Qualia(pred_type, opposition)
-
-
-    def _get_variables(self):
-        """Returns a dictionary of roles and variables from all elements of the
-        subcategorisation frame. The dictionary is indexed on the roles and
-        variables are integers, for example {'Beneficiary': 0, 'Agent': 1}."""
-        member_vars = {}
-        for submember in self.subcat:
-            #print '  ', submember.var, submember.role
-            if submember.var not in [None, "e"]:
-                member_vars[submember.role[0]] = submember.var
-        return member_vars
-
-    def _find_opposition_predicate(self):
-        """Check whether one of the predicates in the frame is deemed intersting for
-        oppositions.  Returns None if there is no such predicate and returns the
-        predicate value of the last one of those predicates if there is one."""
-        pred_type = None
-        for pred in self.vnframe.predicates:
-            #print '  ', pred
-            if pred.value[0] in ['motion', 'transfer', 'cause', 'transfer_info', \
-                'adjust', 'emotional_state', 'location', 'state', 'wear']:
-                pred_type = pred.value[0]
-        return pred_type
-
-    def _set_type_of_change(self, pred):
-        """Check the argument types of the predicate for certain change predicates, if
-        there is one then return 'pos', 'loc', 'info' or 'state', else return None."""
-        # TODO: this relies on there being at least 4 argtypes in the predicate,
-        # is that kosher?
-        type_of_change = None
-        if pred.argtypes[3][1] == 'ch_of_poss' or pred.argtypes[3][1] == 'ch_of_pos':
-            type_of_change = "pos"
-        if pred.argtypes[3][1] == 'ch_of_loc' or pred.argtypes[3][1] == 'ch_of_location':
-            type_of_change = "loc"
-        if pred.argtypes[3][1] == 'ch_of_info':
-            type_of_change = "info"
-        if pred.argtypes[3][1] == 'ch_of_state':
-            type_of_change = "state"
-        return type_of_change
-
-    def _set_changer_and_opposition(self, pred, member_vars):
-        """Check to see where the object that changes is, and where that object
-        is or who owns it."""
-        # TODO: find out why this works
-        # NOTE: it does not seem to do the right thing on first glance
-        if pred.argtypes[1][1] in member_vars.keys():
-            changer = pred.argtypes[1][1]       # object that changes
-            opposition = pred.argtypes[2][1]    # where the object is or who owns it
-        else:
-            changer = pred.argtypes[2][1]       # object that changes
-            opposition = pred.argtypes[1][1]
-        return changer, opposition
-
-    def _update_start_and_end(self, pred, changer, opposition, start, end):
-        """Add (changer, opposition) pair to start and/or end if predicate includes
-        start(E) or end(E) argtype."""
-        if pred.argtypes[0][1] == 'start(E)':
-            start.append(tuple((changer, opposition)))
-        if pred.argtypes[0][1] == 'end(E)':
-            end.append(tuple((changer, opposition)))
-
-    def _get_start_opp(self, equals, opposition_s):
-        start_opp = opposition_s
-        if len(equals) > 0:
-            for pair in equals:
-                if pair[1] == opposition_s:
-                    start_opp = pair[0]
-        return start_opp
-
-    def _get_end_opp(self, equals, opposition_e):
-        end_opp = opposition_e
-        if len(equals) > 0:
-            for pair in equals:
-                if pair[1] == opposition_e:
-                    end_opp = pair[0]
-        return end_opp
-
-    def _add_opposition_to_states(self, end, changers, changer, changer_s, equals,
-                                  member_vars, start_opp, states):
-        """Adds opposition to states for those cases where both the initial and the
-        final state are expressed."""
-        changer_s_var = member_vars.get(changer_s, changer_s)
-        opp_s_var = member_vars.get(start_opp, '?')
-        is_end = False
-        for changer_e, opposition_e in end:
-            if changer_s == changer_e:
-                is_end = True
-                changers.append(changer_s)
-                end_opp = self._get_end_opp(equals, opposition_e)
-                opp_e_var = member_vars.get(end_opp, '?')
-                start_state = State(changer_s_var, opp_s_var)
-                final_state = State(changer_s_var, opp_e_var)
-                states.append(tuple((start_state, final_state)))
-        if not is_end:
-            changers.append(changer)
-            start_state = State(changer_s_var, opp_s_var)
-            final_state = State(changer_s_var, "-" + str(opp_s_var))
-            states.append(tuple((start_state, final_state)))
-
-    def _add_opposition_to_states2(self, changers, changer, opposition,
-                                   equals, member_vars, states):
-        """Adds opposition to states for those cases where only the final state is
-        expressed."""
-        if changer not in changers:
-            changers.append(changer)
-            end_opp = opposition
-            if len(equals) > 0:
-                for pair in equals:
-                    if pair[1] == opposition:
-                        end_opp = pair[0]
-            changer_var = member_vars.get(changer, changer)
-            opp_var = member_vars.get(end_opp, '?')
-            start_state = State(changer_var, "-" + str(opp_var))
-            final_state = State(changer_var, opp_var)
-            states.append(tuple((start_state, final_state)))
-
-    def _debug0(self, member_vars, pred_type):
-        print "\n", self.glverbclass.ID, ' '.join(self.pri_description)
-        print '  ', member_vars
-        print '   pred_type =', pred_type
-
-    def _debug1(self, equals, start, end, member_vars, pred_type):
-        if equals or start or end:
-            print "\n", self.glverbclass.ID, ' '.join(self.pri_description)
-            print "   member_vars = %s" % member_vars 
-            print "   pred_type   = %s" % pred_type
-            print "   equals      = %s" % equals
-            print "   start       = [%s]" % ', '.join(["%s-%s" % (x, y) for x, y in start])
-            print "   end         = [%s]" % ', '.join(["%s-%s" % (x, y) for x, y in end])
-
 
     def find_predicates(self, pred_value):
         """Returns the list of Predicates where the value equals pred_value."""
@@ -375,9 +179,25 @@ class GLFrame(object):
         """Returns True if one of the predicates is 'motion', returns False otherwise."""
         return True if self.find_predicates('motion') else False
 
-    def set_motion_opposition(self):
+    def add_oppositions(self):
+        # use an auxiliary dictionary that has mappings from role names to
+        # variables, taken from the subcat frame
+        self.role2var = self._get_variables()
         if self.is_motion_frame():
-            self.role2var = self._get_variables()
+            self._add_motion_opposition()
+
+    def _get_variables(self):
+        """Returns a dictionary of roles and variables from all elements of the
+        subcategorisation frame. The dictionary is indexed on the roles and
+        variables are integers, for example {'Beneficiary': 0, 'Agent': 1}."""
+        member_vars = {}
+        for submember in self.subcat:
+            if submember.var not in [None, "e"]:
+                member_vars[submember.role[0]] = submember.var
+        return member_vars
+
+    def _add_motion_opposition(self):
+        if self.is_motion_frame():
             initial_location, destination = None, None
             moving_object = self._get_moving_object()
             agent = self._get_agent()
@@ -387,7 +207,7 @@ class GLFrame(object):
             initial_state = State(moving_object[1], initial_location[1])
             final_state = State(moving_object[1], destination[1])
             opposition = Opposition('loc', [[initial_state, final_state]])
-            self.event_structure = EventStructure([[initial_state, final_state]])
+            self.events = EventStructure([[initial_state, final_state]])
             self.qualia = Qualia('motion', opposition)
             if self.glverbclass.ID in ('run-51.3.2', 'slide.11.2'):
                 return
@@ -821,16 +641,20 @@ if __name__ == '__main__':
     vn = VerbNetParser(max_count=50)
     vn = VerbNetParser(file_list='list-motion-classes.txt')
     vn = VerbNetParser(file_list='list-random.txt')
-    vn = VerbNetParser()
+    #vn = VerbNetParser()
     vn_classes = [GLVerbClass(vc) for vc in vn.verb_classes]
 
-    test1(vn_classes)
-    test2(vn_classes)
-    test3(vn_classes)
+    test_gl_code = True
+    test_image_code = False
 
-    test_ch_of_searches(vn_classes)
-    test_new_searches(vn_classes)
-    test_image_searches(vn_classes)
-    #test_search_by_ID(vn_classes)
+    if test_gl_code:
+        #test1(vn_classes)
+        #test2(vn_classes)
+        test3(vn_classes)
 
-    create_schema_to_verbnet_mappings(vn_classes)
+    if test_image_code:
+        test_ch_of_searches(vn_classes)
+        test_new_searches(vn_classes)
+        test_image_searches(vn_classes)
+        test_search_by_ID(vn_classes)
+        create_schema_to_verbnet_mappings(vn_classes)

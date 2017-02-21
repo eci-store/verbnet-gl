@@ -138,6 +138,6 @@ class HtmlClassWriter(object):
     def pp_html_event(self, gl_frame):
         self.fh.write("<tr class=event valign=top>\n")
         self.fh.write("  <td>GL event structure")
-        self.fh.write("  <td>var = %s<br>\n" % gl_frame.event_structure.var)
-        self.fh.write("      initial_state = %s<br>\n" % gl_frame.event_structure.initial_state)
-        self.fh.write("      final_state = %s\n" % gl_frame.event_structure.final_state)
+        self.fh.write("  <td>var = %s<br>\n" % gl_frame.events.var)
+        self.fh.write("      initial_state = %s<br>\n" % gl_frame.events.initial_state)
+        self.fh.write("      final_state = %s\n" % gl_frame.events.final_state)
