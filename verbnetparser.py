@@ -28,10 +28,14 @@ class VerbNetParser(object):
     """Parse VerbNet XML files, and turn them into a list of BeautifulSoup 
     objects"""
     
-    def __init__(self, max_count=None):
+    def __init__(self, max_count=None, file_list=None):
+        """Take all verbnet files, if max_count is used then take the first max_count
+        files, if file_list is used, read the filenames from the file."""
         fnames = [f for f in os.listdir(VERBNET_PATH) if f.endswith(".xml")]
         if max_count is not None:
             fnames = fnames[:max_count]
+        if file_list is not None:
+            fnames = ["%s.xml" % f for f in open(file_list).read().split()]
         self.filenames = [os.path.join(VERBNET_PATH, fname) for fname in fnames]
         self.parsed_files = self.parse_files()
         self.verb_classes = [VerbClass(parse) for parse in self.parsed_files]
@@ -146,14 +150,6 @@ class Frame(AbstractXML):
         self.syntax = self.get_syntax()
         self.predicates = [Predicate(pred) for pred in self.soup.SEMANTICS.find_all("PRED")]
     
-    def get_syntax(self):
-        raw_roles = [SyntacticRole(role) for role in self.soup.SYNTAX.children]
-        roles = []
-        for role in raw_roles:
-            if role.POS != None:
-                roles.append(role)
-        return roles
-    
     def __repr__(self):
         return "\nDN: " + str(self.description_num) + \
                "\nPrimary: " + str(self.primary) + \
@@ -162,6 +158,14 @@ class Frame(AbstractXML):
                "\nExamples: " + str(self.examples) + \
                "\nSyntax: " + str(self.syntax) + \
                "\nPredicates: " + str(self.predicates) + "\n"
+
+    def get_syntax(self):
+        raw_roles = [SyntacticRole(role) for role in self.soup.SYNTAX.children]
+        roles = []
+        for role in raw_roles:
+            if role.POS != None:
+                roles.append(role)
+        return roles
 
 
 class ThematicRole(AbstractXML):
@@ -204,7 +208,7 @@ class Predicate(AbstractXML):
         self.soup = soup
         self.value = self.get_category('value')
         self.args = self.soup.find_all('ARG')
-        self.argtypes = [(self.get_category('type', arg)[0], 
+        self.argtypes = [(self.get_category('type', arg)[0],
                           self.get_category('value', arg)[0]) for arg in self.args]
 
     def __str__(self):
@@ -258,32 +262,33 @@ def search(verbclasslist, pred_type=None, themroles=None, synroles=None, semrole
                 if pred.value[0] == pred_type:
                     successes.append((vc, frame))
     return successes
-            
 
-# Test it out
-if __name__ == '__main__':
-    
-    vnp = VerbNetParser()
-    #print vnp.filenames, len(vnp.filenames)
-    print len(vnp.parsed_files)
-    mems = vnp.parsed_files[269].MEMBERS
-    for mem in mems.find_all("MEMBER"):
-        print mem.get('name'), mem.get('wn').split(), mem.get('grouping').split()
-    #print mems.find_all("MEMBER")
-    vc1 = vnp.verb_classes[269]
+
+def test():
+    vnp = VerbNetParser(max_count=50)
+    count =  len(vnp.parsed_files)
+    print count, 'classes'
+    vc = vnp.verb_classes[-1]
+    mems = vnp.parsed_files[-1].MEMBERS
     print
-    print vc1
-    print
-    #print vc1.names
-    #print vc1.frames
-    #print vc1.themroles
-    results = search(vnp.verb_classes, "motion")
+    print vc.ID
+    print '   names', ' '.join(vc.names)
+    print'   members'
+    for m in mems.find_all("MEMBER"):
+        print '     ', m
+    #results = search(vnp.verb_classes, "motion")
     #print len(results)
     #for frame in results:
     #    print frame
+    print
     for vc in vnp.verb_classes:
         if len(vc.subclasses) >= 1:
             print vc.ID
             for subclass in vc.subclasses:
                 if len(subclass.subclasses) > 0:
-                    print vc.ID, "nested subclass"
+                    print '  ', subclass.ID
+
+
+if __name__ == '__main__':
+
+    test()

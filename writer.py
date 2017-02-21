@@ -139,5 +139,5 @@ class HtmlClassWriter(object):
         self.fh.write("<tr class=event valign=top>\n")
         self.fh.write("  <td>GL event structure")
         self.fh.write("  <td>var = %s<br>\n" % gl_frame.event_structure.var)
-        self.fh.write("      initial_states = %s<br>\n" % gl_frame.event_structure.initial_states)
-        self.fh.write("      final_states = %s\n" % gl_frame.event_structure.final_states)
+        self.fh.write("      initial_state = %s<br>\n" % gl_frame.event_structure.initial_state)
+        self.fh.write("      final_state = %s\n" % gl_frame.event_structure.final_state)
