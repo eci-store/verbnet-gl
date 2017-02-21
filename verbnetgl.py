@@ -22,10 +22,10 @@ $ python verbnetgl.py -d
     Runs the main code in create_verbnet_gl() in debug mode, that is, on just
     the first 50 verb classes. Results are written to html/index.html.
 
-$ python verbnetgl.py -f list-motion-classes.txt
+$ python verbnetgl.py -f lists/motion-classes.txt
 
     Runs the main code in create_verbnet_gl(), but now only n the classes listed
-    in list-motion-classes.txt. Results are written to html/index.html.
+    in lists/motion-classes.txt. Results are written to html/index.html.
 
 $ python verbnetgl.py -t
 $ python verbnetgl.py -td
@@ -38,11 +38,10 @@ $ python verbnetgl.py -td
 import os, sys, itertools, getopt
 
 from verbnetparser import VerbNetParser
-from writer import HtmlWriter, HtmlClassWriter
-from search import search_by_predicate, search_by_argtype
-from search import search_by_ID, search_by_subclass_ID
-from search import search_by_themroles, search_by_POS, search_by_cat_and_role
-from search import reverse_image_search, image_schema_search, image_schema_search2
+from utils.writer import HtmlWriter
+from utils.search import search_by_predicate, search_by_argtype
+from utils.search import search_by_ID, search_by_subclass_ID
+from utils.search import search_by_themroles, search_by_POS, search_by_cat_and_role
 
 
 class GLVerbClass(object):
@@ -460,7 +459,7 @@ def test_print_some_classes(vn_classes):
     """Print a list of classes that match a couple of hand-picked predicates. The
     results are written to the html directory."""
     print "\n%s" % (">" * 80)
-    print ">>> RUNNING test_print_first_class"
+    print ">>> RUNNING test_print_some_classes"
     print ">>> Hit return to proceed..."
     raw_input()
     preds = ["motion", "transfer", "adjust", "cause", "transfer_info",
@@ -481,11 +480,11 @@ def test_search_by_ID(vn_classes):
     try:
         print search_by_ID(vn_classes, "absorb-39.8")
     except:
-        print "WARNING: could not find absorb-39.8"
+        print "\nWARNING: could not find absorb-39.8"
     try:
         print search_by_ID(vn_classes, "swarm-47.5.1").subclasses[1]
     except AttributeError:
-        print "WARNING: could not find swarm-47.5.1"
+        print "\nWARNING: could not find swarm-47.5.1"
 
 
 def test_ch_of_searches(vn_classes):
