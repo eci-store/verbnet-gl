@@ -88,24 +88,25 @@ class HtmlClassWriter(object):
     def pp_html_example(self, gl_frame):
         self.fh.write("<tr class=vn valign=top>\n")
         self.fh.write("  <td width=180>Example\n")
-        self.fh.write("  <td>\"%s\"" % gl_frame.example[0])
+        self.fh.write("  <td>\"%s\"\n" % gl_frame.example[0])
 
     def pp_html_predicate(self, vn_frame):
         def predicate_str(pred):
             args = ', '.join([argtype[1] for argtype in pred.argtypes])
             return "<span class=pred>%s</span>(%s)" % (pred.value[0], args)
         self.fh.write("<tr class=vn valign=top>\n")
-        self.fh.write("  <td width=180>VerbNet&nbsp;predicates\n")
-        self.fh.write("  <td>")
-        self.fh.write(', '.join([predicate_str(pred) for pred in vn_frame.predicates]))
+        self.fh.write("  <td>Predicates\n")
+        self.fh.write("  <td>\n    ")
+        self.fh.write("<br/>\n    ".join([predicate_str(pred) for pred in vn_frame.predicates]))
+        self.fh.write("\n")
 
     def pp_html_subcat(self, gl_frame):
         self.fh.write("<tr class=qualia valign=top>\n")
-        self.fh.write("  <td>GL&nbsp;subcategorisation\n")
+        self.fh.write("  <td>Subcategorisation\n")
         self.fh.write("  <td>\n")
         for element in gl_frame.subcat:
             #self.fh.write("      { %s } <br>\n" % element)
-            self.fh.write("      {")
+            self.fh.write("    {")
             if element.var is not None:
                 self.fh.write(" var=%s" % element.var)
             self.fh.write(" cat=%s" % element.cat)
@@ -132,12 +133,12 @@ class HtmlClassWriter(object):
 
     def pp_html_qualia(self, gl_frame):
         self.fh.write("<tr class=qualia valign=top>\n")
-        self.fh.write("  <td>GL&nbsp;qualia&nbsp;structure\n")
+        self.fh.write("  <td>Qualia&nbsp;structure\n")
         self.fh.write("  <td>%s\n" % gl_frame.qualia)
 
     def pp_html_event(self, gl_frame):
         self.fh.write("<tr class=event valign=top>\n")
-        self.fh.write("  <td>GL event structure")
+        self.fh.write("  <td>Event structure")
         self.fh.write("  <td>var = %s<br>\n" % gl_frame.events.var)
         self.fh.write("      initial_state = %s<br>\n" % gl_frame.events.initial_state)
         self.fh.write("      final_state = %s\n" % gl_frame.events.final_state)

@@ -438,9 +438,9 @@ def create_verbnet_gl(vn_classes):
     ch_of_info_vcs = [vc for vc in vn_classes if vc.is_change_of_info_class()]
     writer = HtmlWriter()
     writer.write(motion_vcs + transfer_vcs, 'VN Motion Classes', 'motion')
-    writer.write(possession_vcs, 'VN Posession Classes', 'poss')
-    writer.write(ch_of_state_vcs, 'VN Change of State Classes', 'ch_of_x')
+    writer.write(possession_vcs, 'VN Change of Possession Classes', 'poss')
     writer.write(ch_of_info_vcs, 'VN Change of Info Classes', 'ch_of_info')
+    writer.write(ch_of_state_vcs, 'VN Change of State Classes', 'ch_of_x')
     writer.finish()
 
 
@@ -508,14 +508,17 @@ def test_new_searches(vn_classes):
     print ">>> RUNNING test_new_searches"
     print ">>> Hit return to proceed..."
     raw_input()
+    sbt = search_by_themroles
+    sbp = search_by_POS
+    sbcar = search_by_cat_and_role
     for print_string, function, role_list, boolean in [
-            ("Verbclasses with Agent and Patient thematic roles:", search_by_themroles, ['Agent', 'Patient'], False),
-            ('Agent and Patient only classes:', search_by_themroles, ['Agent', 'Patient'], True),
-            ("Verbclasses with frames with NP and VERB syntactic roles:", search_by_POS, ['NP', 'VERB'], False),
+            ("Verbclasses with Agent and Patient thematic roles:", sbt, ['Agent', 'Patient'], False),
+            ('Agent and Patient only classes:', sbt, ['Agent', 'Patient'], True),
+            ("Verbclasses with frames with NP and VERB syntactic roles:", sbp, ['NP', 'VERB'], False),
             ('NP and VERB only classes:', search_by_POS, ['NP', 'VERB'], True),
-            ("Verbclasses with frames with (NP, Agent) subcat members:", search_by_cat_and_role, [('NP', 'Agent')], False),
-            ('(NP, Agent) and (PREP, None) classes:', search_by_cat_and_role, [('NP', 'Agent'), ('PREP', 'None')], False),
-            ('(NP, Agent) and (VERB, None) only classes:', search_by_cat_and_role, [('NP', 'Agent'), ('VERB', 'None')], True) ]:
+            ("Verbclasses with frames with (NP, Agent) subcat members:", sbcar, [('NP', 'Agent')], False),
+            ('(NP, Agent) and (PREP, None) classes:', sbcar, [('NP', 'Agent'), ('PREP', 'None')], False),
+            ('(NP, Agent) and (VERB, None) only classes:', sbcar, [('NP', 'Agent'), ('VERB', 'None')], True) ]:
         results = function(vn_classes, role_list, boolean)
         ids = []
         if results:
