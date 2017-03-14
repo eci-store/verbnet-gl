@@ -8,7 +8,7 @@ these classes are then instantiated at the end of this file, to be used in an
 image search function in verbnetgl.py
 
 The main function is create_schema_to_verbnet_mappings(), which creates a bunch
-of html pages with mappnigs between image schema and VerbNet.
+of html pages with mappings between image schema and VerbNet.
 
 """
 

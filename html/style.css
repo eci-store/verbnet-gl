@@ -1,19 +1,30 @@
 
-table { margin: 5pt; margin-bottom: 10pt; border: 1px solid darkgrey; }
+body { width: 900px; margin: 5pt; }
+
+table { margin-bottom: 10pt; border: 2px solid darkgrey; width: 100%}
 table.noborder { border: 0px solid darkgrey; }
 
-h1 { padding: 10px;  margin: 5pt; margin-bottom: 15pt; border: 1px solid black; width:980px; }
+h1 { padding: 10px;  margin-bottom: 15pt; border: 2px solid gray;
+     background-color: skyblue; }
 
 a:link { color: black; text-decoration: none; }
 a:visited { color: darkblue; text-decoration: none; }
 a:hover { color: darkred; text-decoration: underline; font-weight: xbold; }
 a:active { color: black; text-decoration: none; }
 
-.list { margin: 10pt; padding-left: 8pt; border: 1px solid darkgrey; width: 150pt; background-color: e8ffff; }
-.header { background-color: skyblue; }
-.vnlink { background-color: e8ffff; }
+.list { margin: 10pt; padding-left: 8pt; border: 1px solid darkgrey; width: 150pt;
+	background-color: #e8ffff; }
+
+.header { background-color: skyblue; border: 2px solid red; }
+
+.vnlink { background-color: #e8ffff; }
+
 .description { background-color: skyblue; font-size: 120%; }
-.vn { background-color: e8ffff; }
-.qualia { background-color: lightyellow; }
-.event { background-color: lightyellow; }
+
+.vn { background-color: #e8ffff; }
+
+.qualia { background-color: #e8ffff; }
+
+.event { background-color: #e8ffff; }
+
 .pred { font-weight: bold; color: darkred; font-variant: small-caps; }

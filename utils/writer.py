@@ -23,6 +23,9 @@ class HtmlWriter(object):
         self.index.write("<html>\n")
         self.index.write("<head>\n")
         self.index.write("<link rel=\"stylesheet\" type=\"text/css\" href=\"style.css\">\n")
+        self.index.write("<style>\n")
+        self.index.write("body, table { width: unset; }\n")
+        self.index.write("</style>\n")
         self.index.write("</head>\n")
         self.index.write("<body>\n")
         self.index.write("<table class=noborder >\n")
@@ -64,13 +67,15 @@ class HtmlClassWriter(object):
         self.fh.write("</head>\n")
         self.fh.write("<body>\n")
         self.fh.write("\n<h1>%s</h1>\n" % str(self.glverbclass.ID))
+        self.pp_html_roles(self.glverbclass.roles)
+
         frames_to_print = range(len(self.glverbclass.frames))
         if frames is not None:
             frames_to_print = frames
         for i in frames_to_print:
             vn_frame = self.glverbclass.verbclass.frames[i]
             gl_frame = self.glverbclass.frames[i]
-            self.fh.write("\n<table class=frame cellpadding=8 cellspacing=0 border=0 width=1000>\n")
+            self.fh.write("\n<table class=frame cellpadding=8 cellspacing=0 border=0>\n")
             self.pp_html_description(gl_frame, i)
             self.pp_html_example(gl_frame)
             self.pp_html_predicate(vn_frame)
@@ -79,42 +84,42 @@ class HtmlClassWriter(object):
             self.pp_html_event(gl_frame)
             self.fh.write("</table>\n\n")
 
+    def pp_html_roles(self, roles):
+        self.fh.write("\n<table class=frame cellpadding=8 cellspacing=0 border=0>\n")
+        self.fh.write("<tr class=vn valign=top>\n")
+        self.fh.write("  <td width=180>Thematic Roles\n")
+        self.fh.write("  <td>\n")
+        for role in roles:
+            self.fh.write("      %s<br/>\n" % role)
+        self.fh.write("  </table>\n")
+
     def pp_html_description(self, gl_frame, frame_number=None):
         self.fh.write("<tr class=description>\n")
         frame_number = '' if frame_number is None else "Frame %s: " % frame_number
-        self.fh.write("  <td colspan=2>%s%s\n" % (frame_number,
-                                                  ' '.join(gl_frame.pri_description)))
+        self.fh.write("  <td colspan=2>%s%s\n" % (frame_number, gl_frame.description))
 
     def pp_html_example(self, gl_frame):
         self.fh.write("<tr class=vn valign=top>\n")
         self.fh.write("  <td width=180>Example\n")
-        self.fh.write("  <td>\"%s\"\n" % gl_frame.example[0])
+        self.fh.write("  <td>\"%s\"\n" % gl_frame.examples[0])
 
     def pp_html_predicate(self, vn_frame):
         def predicate_str(pred):
             args = ', '.join([argtype[1] for argtype in pred.argtypes])
-            return "<span class=pred>%s</span>(%s)" % (pred.value[0], args)
+            return "<span class=pred>%s</span>(%s)" % (pred.value, args)
         self.fh.write("<tr class=vn valign=top>\n")
         self.fh.write("  <td>Predicates\n")
-        self.fh.write("  <td>\n    ")
-        self.fh.write("<br/>\n    ".join([predicate_str(pred) for pred in vn_frame.predicates]))
+        self.fh.write("  <td>\n")
+        for pred in vn_frame.predicates:
+            self.fh.write("     %s<br/>\n" % predicate_str(pred))
         self.fh.write("\n")
 
     def pp_html_subcat(self, gl_frame):
-        self.fh.write("<tr class=qualia valign=top>\n")
+        self.fh.write("<tr class=vn valign=top>\n")
         self.fh.write("  <td>Subcategorisation\n")
         self.fh.write("  <td>\n")
         for element in gl_frame.subcat:
-            #self.fh.write("      { %s } <br>\n" % element)
-            self.fh.write("    {")
-            if element.var is not None:
-                self.fh.write(" var=%s" % element.var)
-            self.fh.write(" cat=%s" % element.cat)
-            if element.role:
-                self.fh.write(" role=%s" % element.role[0])
-            self.fh.write(" } / [")
-            self.pp_html_restriction(element.sel_res)
-            self.fh.write("]<br>\n")
+            self.fh.write("    %s<br/>\n" % element)
 
     def pp_html_restriction(self, restriction):
         # print '>>', restriction
