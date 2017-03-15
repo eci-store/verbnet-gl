@@ -92,22 +92,13 @@ class HtmlClassWriter(object):
             self.fh.write("</table>\n\n")
 
     def pp_html_verbnet_source(self):
-        xid = self.glverbclass.ID
-        url = os.path.dirname(self.verbnet_url) + os.sep + self.glverbclass.ID + '.php'
-        href = "<a href=%s>%s</a>" % (url, url)
-        self.fh.write("\n<table class=frame cellpadding=8 cellspacing=0 border=0>\n")
-        self.fh.write("<tr class=vn valign=top>\n")
-        self.fh.write("  <td colspan=2>Verbnet source: %s\n" % href)
-        self.fh.write("</table>\n")
-
-    def xpp_html_roles(self):
-        self.fh.write("\n<table class=frame cellpadding=8 cellspacing=0 border=0>\n")
-        self.fh.write("<tr class=vn valign=top>\n")
-        self.fh.write("  <td width=180>Thematic Roles\n")
-        self.fh.write("  <td>\n")
-        for role in self.glverbclass.roles:
-            self.fh.write("      %s<br/>\n" % role.html())
-        self.fh.write("</tr>\n</table>\n")
+        if self.verbnet_url is not None:
+            url = os.path.dirname(self.verbnet_url) + os.sep + self.glverbclass.ID + '.php'
+            href = "<a href=%s>%s</a>" % (url, url)
+            self.fh.write("\n<table class=frame cellpadding=8 cellspacing=0 border=0>\n")
+            self.fh.write("<tr class=vn valign=top>\n")
+            self.fh.write("  <td colspan=2>Verbnet source: %s\n" % href)
+            self.fh.write("</table>\n")
 
     def pp_html_roles(self):
         self.fh.write("\n<table class=frame cellpadding=8 cellspacing=0 border=0>\n")
