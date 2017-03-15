@@ -139,6 +139,9 @@ class HtmlClassWriter(object):
         self.fh.write("  <td>\n")
         for element in gl_frame.subcat:
             self.fh.write("    %s \n" % element.html())
+        #self.fh.write("  <br/>\n")
+        #for element in gl_frame.subcat:
+        #    self.fh.write("    %s<br/>\n" % element)
         self.fh.write("</tr>\n")
 
     def pp_html_qualia(self, gl_frame):

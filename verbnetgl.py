@@ -413,12 +413,17 @@ class SubcatElement(object):
         def verb(text): return "<span class=verb>%s</span>" % text
         def role(text): return "<span class=role>%s</span>" % text
         def prep(text): return "<span class=prep>%s</span>" % text
+        def cat(text): return "<span class=cat>%s</span>" % text
         if self.role is not None and self.cat in ('NP', 'PP'):
             return "%s(%s)" % (role(self.role), html_var(self.var))
         elif self.var == 'e':
             return "%s(%s)" % (verb('V'), self.var)
-        else:
+        elif self.role is not None:
             return "{%s}" % prep(self.role)
+        elif not self.restrictions.is_empty():
+            return "{%s}" % prep(self.restrictions)
+        else:
+            return "{%s}" % cat(self.cat)
 
 
 class State(object):

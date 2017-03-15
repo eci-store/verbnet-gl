@@ -43,3 +43,4 @@ tr.event { background-color: #e8ffff; }
 .role { font-weight: bold; font-variant: small-caps; }
 .verb { font-weight: bold; color: darkgreen; font-variant: small-caps; }
 .prep { font-weight: bold; color: darkblue; font-variant: small-caps; }
+.cat { font-variant: small-caps; }

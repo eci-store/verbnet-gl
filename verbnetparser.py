@@ -194,8 +194,15 @@ class SyntacticRole(object):
         self.value = self.soup.get('value')
         self.restrictions = None
         self.restrictions = SyntacticRestrictions(self.soup.SYNRESTRS)
+        # some syntactic roles have semantic selection restrictions on them, try
+        # to collect them when there are no syntactic restrictions
+        # TODO: must check where all restrictions occur
+        if self.restrictions.is_empty():
+            if self.soup.SELRESTRS is not None:
+                self.restrictions = SelectionalRestrictions(self.soup.SELRESTRS)
 
-    def __str__(self):
+
+def __str__(self):
         return "<SyntacticRole pos=%s value=%s restrictions=%s>" \
             % (self.pos, self.value, self.restrictions)
 
