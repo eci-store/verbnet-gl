@@ -33,19 +33,24 @@ $ python verbnetgl.py -td
    Runs a couple of tests, either using all of VerbNet or just the first 50
    classes. You will need to hit return before each test.
 
+The code here is designed to run on Verbnet 3.3.
+
 """
 
 import os, sys, getopt
 
 from verbnetparser import read_verbnet
 from utils.ansi import BOLD, GREY, END
-from utils.writer import HtmlWriter
+from utils.writer import HtmlWriter, html_var
 from utils.search import search_by_predicate, search_by_argtype, search_by_ID
 from utils import ansi
 import utils.tests
 
 DEBUG = True
 DEBUG = False
+
+VERBNET_VERSION = '3.3'
+VERBNET_URL = 'http://verbs.colorado.edu/verb-index/vn3.3/vn/reference.php'
 
 
 class VerbnetGL(object):
@@ -88,7 +93,8 @@ class VerbnetGL(object):
         possession_vcs = search_by_argtype(self.verb_classes, "ch_of_poss")
         ch_of_state_vcs = [vc for vc in self.verb_classes if vc.is_change_of_state_class()]
         ch_of_info_vcs = [vc for vc in self.verb_classes if vc.is_change_of_info_class()]
-        writer = HtmlWriter()
+        writer = HtmlWriter(url=VERBNET_URL, version=VERBNET_VERSION)
+        # transfer may also bring in many verbs that are not true motion verbs
         writer.write(motion_vcs + transfer_vcs, 'Motion Classes', 'motion')
         writer.write(possession_vcs, 'Change of Possession Classes', 'poss')
         writer.write(ch_of_info_vcs, 'Change of Info Classes', 'ch_of_info')
@@ -363,7 +369,8 @@ class Subcat(object):
                 continue
             elif synrole.pos == "NP":
                 i += 1
-                self.members.append(SubcatElement(i, synrole))
+                var = "x%d" % i
+                self.members.append(SubcatElement(var, synrole))
 
     def __iter__(self):
         return iter(self.members)
@@ -402,6 +409,17 @@ class SubcatElement(object):
         return "{ var = %s, cat = %s, role = %s }%s" \
             % (self.var, self.cat, self.role, restrictions)
 
+    def html(self):
+        def verb(text): return "<span class=verb>%s</span>" % text
+        def role(text): return "<span class=role>%s</span>" % text
+        def prep(text): return "<span class=prep>%s</span>" % text
+        if self.role is not None and self.cat in ('NP', 'PP'):
+            return "%s(%s)" % (role(self.role), html_var(self.var))
+        elif self.var == 'e':
+            return "%s(%s)" % (verb('V'), self.var)
+        else:
+            return "{%s}" % prep(self.role)
+
 
 class State(object):
     
@@ -421,6 +439,10 @@ class State(object):
         
     def __repr__(self):
         return "{ objects.%s.location = %s }" % (self.object, self.position)
+
+    def html(self):
+        return "{ objects.%s.location = %s }" % (html_var(self.object),
+                                                 html_var(self.position))
 
 
 class EventStructure(object):
@@ -467,7 +489,14 @@ class Opposition(object):
         return ' '.join(["(%s(%s, %s), %s(%s, %s))" % \
                          (op, start.object, start.position, op, end.object, end.position)
                          for start, end in self.states])
- 
+
+    def html(self):
+        op = Opposition.operator_mappings.get(self.type_of_change, 'Op')
+        return ' '.join(["(%s(%s, %s), %s(%s, %s))" % \
+                         (op, html_var(start.object), html_var(start.position),
+                          op, html_var(end.object), html_var(end.position))
+                         for start, end in self.states])
+
  
 class Qualia(object):
 
@@ -482,6 +511,11 @@ class Qualia(object):
     def __repr__(self):
         formal = "%s(e)" % self.formal if self.formal is not None else None
         opposition = '' if self.opposition is None else " AND %s" % self.opposition
+        return "{ formal = %s%s }" % (formal, opposition)
+
+    def html(self):
+        formal = "%s(e)" % self.formal if self.formal is not None else None
+        opposition = '' if self.opposition is None else " AND %s" % self.opposition.html()
         return "{ formal = %s%s }" % (formal, opposition)
 
 

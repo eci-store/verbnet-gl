@@ -1,0 +1,15 @@
+berry-13.7
+cheat-10.6.1
+consume-66
+contribute-13.2
+deprive-10.6.2
+equip-13.4.2
+exchange-13.6.1
+fulfilling-13.4.1
+future_having-13.3
+get-13.5.1
+give-13.1
+obtain-13.5.2
+pay-68
+rob-10.6.4
+steal-10.5

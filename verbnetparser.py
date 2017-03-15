@@ -159,6 +159,13 @@ class ThematicRole(object):
         else:
             return "%s / %s" % (self.role_type, self.sel_restrictions)
 
+    def html(self):
+        def role(text): return "<span class=role>%s</span>" % text
+        if self.sel_restrictions.is_empty():
+            return role(self.role_type)
+        else:
+            return "%s / %s" % (role(self.role_type), self.sel_restrictions)
+
 
 class Predicate(object):
 
