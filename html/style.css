@@ -1,5 +1,5 @@
 
-body { width: 900px; margin: 5pt; }
+body { width: 1000px; margin: 5pt; }
 
 table { margin-bottom: 10pt; border: 1px solid darkgrey; width: 100%}
 table.noborder { border: 0px solid darkgrey; }
@@ -14,7 +14,7 @@ a:hover { color: darkred; text-decoration: underline; font-weight: xbold; }
 a:active { color: black; text-decoration: none; }
 
 /* used in variables: "x<sub>2</sub>" */
-sub { font-size: 70%; }
+sub { font-size: 60%; }
 
 /* link to verbnet on index page */
 .header_link { padding-left: 5pt; margin-bottom: 10pt; font-size: 125%; font-weight: bold}

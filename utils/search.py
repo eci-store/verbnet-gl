@@ -2,6 +2,9 @@
 
 Module with search functions for Verbnet classes.
 
+TODO. Note that there is some redundancy with test methods on GLFrame, like
+is_motion_frame(). Start using those methods in the functions here.
+
 """
 
 def search_by_predicate(verbclasslist, pred_type):
@@ -23,7 +26,7 @@ def search_by_argtype(verbclasslist, argtype):
     for vc in verbclasslist:
         for frame in vc.frames:
             for pred in frame.vnframe.predicates:
-                for a_type, a_value in pred.argtypes:
+                for a_type, a_value in pred.args:
                     if argtype == a_value and vc not in results:
                         results.append(vc)
     return results

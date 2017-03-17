@@ -23,7 +23,7 @@ def get_verbnet_directory():
 VERBNET_PATH = get_verbnet_directory()
 
 
-def read_verbnet(max_count=None, file_list=None):
+def read_verbnet(max_count=None, file_list=None, vnclass=None):
     """Parse verbnet files and return a list of VerbClasses. Read all the verbnet
     files, but just take the first max_count files if max_count is used, or read
     filenames from a file if file_list is used."""
@@ -32,6 +32,8 @@ def read_verbnet(max_count=None, file_list=None):
         fnames = fnames[:max_count]
     if file_list is not None:
         fnames = ["%s.xml" % f for f in open(file_list).read().split()]
+    if vnclass is not None:
+        fnames = ["%s.xml" % vnclass]
     filenames = [os.path.join(VERBNET_PATH, fname) for fname in fnames]
     soups = [bs4.BeautifulSoup(open(fname), "lxml-xml") for fname in filenames]
     return [VerbClass(fname, s) for fname, s in zip(filenames, soups)]
@@ -62,7 +64,7 @@ class VerbClass(object):
         self.subclasses = self.subclass()
 
     def __str__(self):
-        return "<GLVerbClass \"%s\" roles=%s frames=%s subclasses=%s members=%s>" \
+        return "<VerbClass \"%s\" roles=%s frames=%s subclasses=%s members=%s>" \
             % (self.ID, len(self.themroles), len(self.frames),
                len(self.subclasses), len(self.members))
 
@@ -175,13 +177,20 @@ class Predicate(object):
         self.soup = soup
         self.value = self.soup.get('value')
         args = self.soup.find_all('ARG')
-        self.argtypes = [(arg.get('type'), arg.get('value')) for arg in args]
+        self.args = [(arg.get('type'), arg.get('value')) for arg in args]
 
     def __str__(self):
-        return "%s(%s)" % (self.value, ', '.join([at[1] for at in self.argtypes]))
+        return "%s(%s)" % (self.value, ', '.join([at[1] for at in self.args]))
 
     def __repr__(self):
-        return "Value: " + str(self.value) + " -- " + str(self.argtypes)
+        return "Value: " + str(self.value) + " -- " + str(self.args)
+
+    def find_arguments(self, arg):
+        """Return all arguments in self.args where arg matches one of the argument's
+        elements.  Note that an argument is a pair of an argument type and an
+        argument value, as in <Event,during(E)> or <ThemRole,Theme>."""
+        return [a for a in self.args if arg in a]
+
 
 
 class SyntacticRole(object):
@@ -215,7 +224,7 @@ class Restrictions(object):
     def __str__(self):
         if self.is_empty():
             return '()'
-        op = ' & ' if self.logic == 'and' else ' || '
+        op = ' & ' if self.logic == 'and' else ' | '
         return "(%s)" % op.join([str(s) for s in self.restrictions])
 
     def is_empty(self):

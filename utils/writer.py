@@ -124,7 +124,7 @@ class HtmlClassWriter(object):
 
     def pp_html_predicate(self, vn_frame):
         def predicate_str(pred):
-            args = ', '.join([argtype[1] for argtype in pred.argtypes])
+            args = ', '.join([arg[1] for arg in pred.args])
             return "<span class=pred>%s</span>(%s)" % (pred.value, args)
         self.fh.write("\n<tr class=vn valign=top>\n")
         self.fh.write("  <td>Predicates\n")
@@ -155,9 +155,9 @@ class HtmlClassWriter(object):
         self.fh.write("  <td>Event structure")
         self.fh.write("  <td>var = %s<br>\n" % gl_frame.events.var)
         self.fh.write("      initial_state = %s<br>\n"
-                      % html_state(gl_frame.events.initial_state))
+                      % gl_frame.events.initial_state().html())
         self.fh.write("      final_state = %s\n"
-                      % html_state(gl_frame.events.final_state))
+                      % gl_frame.events.final_state().html())
         self.fh.write("</tr>\n")
 
 
@@ -171,7 +171,3 @@ def html_var(var):
         prefix = '-'
         var = var[1:]
     return "%s%s<sub>%s</sub>" % (prefix, var[0], var[1:])
-
-
-def html_state(state_list):
-    return "[%s]" % ' '.join([s.html() for s in state_list])
