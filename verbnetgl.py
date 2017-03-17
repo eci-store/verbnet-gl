@@ -48,7 +48,7 @@ from verbnetparser import read_verbnet
 from utils.ansi import BOLD, GREY, END
 from utils.writer import HtmlWriter, html_var
 from utils.search import search_by_predicate, search_by_argtype, search_by_ID
-from utils.formula import Pred, At, Has, Not, Var
+from utils.formula import Pred, At, Has, Holds, Not, Var
 from utils import ansi
 import utils.tests
 
@@ -252,21 +252,44 @@ class GLFrame(object):
         initial_location = self._get_initial_location()
         destination = self._get_destination()
         motion = Pred('motion', [Var('e')])
-        at1 = At(Var('t1'), Var(moving_object[1]), Var(initial_location[1]))
-        at2 = At(Var('t2'), Var(moving_object[1]), Var(destination[1]))
-        self.events = EventStructure(self, 'e', [State(self, [at1]), State(self, [at2])])
-        self.qualia = Qualia(self, self.qualia.formulas + [motion, at1, at2])
-        self.specify_location_opposition(at1, at2)
+        at1 = At(Var(moving_object[1]), Var(initial_location[1]))
+        at2 = At(Var(moving_object[1]), Var(destination[1]))
+        not_at1 = Not(at1)
+        not_at2 = Not(at2)
+        holds1 = Holds(Var('t1'), at1)
+        if at1 == at2:
+            holds2 = Not(Holds(Var('t2'), at2))
+        else:
+            holds2 = Holds(Var('t2'), at2)
+        formulas = self.qualia.formulas + [motion, at1, not_at1]
+        for f in [at2, not_at2]:
+            if f not in formulas:
+                formulas.append(f)
+        self.events = EventStructure(self, 'e', [State(self, [holds1]), State(self, [holds2])])
+        self.qualia = Qualia(self, formulas)
         self._debug1(moving_object, initial_location, destination)
 
-    @staticmethod
-    def specify_location_opposition(at1, at2):
-        if at1.location.ID == '?' and at2.location.ID == '?':
-            at2.set_location(Not(at1.location))
-        elif at1.location.ID == '?':
-            at1.set_location(Not(at2.location))
-        elif at2.location.ID == '?':
-            at2.set_location(Not(at1.location))
+    def _add_possession_opposition(self):
+        owner1 = self.get_role('Agent')
+        owner2 = self.get_role('Recipient')
+        thing = self.get_role('Theme')
+        transfer = Pred('transfer', [Var('e')])
+        has1 = Has(Var(owner1[1]), Var(thing[1]))
+        has2 = Has(Var(owner2[1]), Var(thing[1]))
+        not_has1 = Not(has1)
+        not_has2 = Not(has2)
+        holds1 = Holds(Var('t1'), has1)
+        if has1 == has2:
+            holds2 = Not(Holds(Var('t2'), has2))
+        else:
+            holds2 = Holds(Var('t2'), has2)
+        formulas = self.qualia.formulas + [transfer, has1, not_has1]
+        for f in [has2, not_has2]:
+            if f not in formulas:
+                formulas.append(f)
+        self.events = EventStructure(self, 'e', [State(self, [holds1]), State(self, [holds2])])
+        self.qualia = Qualia(self, formulas)
+        self._debug1(thing, owner1, owner2)
 
     def get_role(self, rolename):
         """Returns a pair of the role and the variable associated with it, use an
@@ -284,34 +307,6 @@ class GLFrame(object):
     def _get_destination(self):
         """The destination is expressed by the Destination role."""
         return self.get_role('Destination')
-
-    def _specify_opposition(self, initial_location, destination):
-        """Specifies the opposition when it has an anonymous variable. It maps
-        <?,?> to <?,-?> and <?,x> to <-x,x> and <x,?> to <-x,x>, but leaves
-        <x,y> as it is. This overgenerates for those cases where motion is
-        in-place."""
-        # TODO: generalize this, the argument names make it sound like it is for
-        # location oppositions only.
-        if initial_location[1] == '?' or destination[1] == '?':
-            if initial_location[1] == '?' and destination[1] == '?':
-                destination[1] = '-?'
-            elif initial_location[1] == '?':
-                initial_location[1] = '-' + destination[1]
-            elif destination[1] == '?':
-                destination[1] = '-' + initial_location[1]
-
-    def _add_possession_opposition(self):
-        owner1 = self.get_role('Agent')
-        owner2 = self.get_role('Recipient')
-        thing = self.get_role('Theme')
-        transfer = Pred('transfer', [Var('e')])
-        has1 = Has(Var('t1'), Var(thing[1]), Var(owner1[1]))
-        has2 = Has(Var('t2'), Var(thing[1]), Var(owner2[1]))
-        self.events = EventStructure(self, 'e', [State(self, [has1]), State(self, [has2])])
-        self.qualia = Qualia(self, self.qualia.formulas + [transfer, has1, has2])
-        #self.specify_owner_opposition(has1, has2)
-        self._debug1(thing, owner1, owner2)
-
 
     def pp_predicates(self, indent=0):
         print "%s%s" % (indent * ' ', ul('predicates'))
