@@ -4,18 +4,16 @@ This file contains the classes for the form of Verbnet that has been enhanced
 with GL event and qualia structures. The classes themselves do all conversions
 necessary given a VerbClass from verbnetparser.py.
 
-To run this do the following:
+To run this you first need to copy config.sample.txt into config.txt and edit it
+if needed by changing the verbnet location. The file config.txt is needed so the
+VerbNet parser can find the VerbNet directory.
 
-1. Copy config.sample.txt into config.txt and edit it if needed by changing the
-verbnet location. The file config.txt is needed so the VerbNet parser can find
-the VerbNet directory.
-
-2. Run this script in one of the following ways:
+Run this script in one of the following ways:
 
 $ python verbnetgl.py
 
-    Runs the main code in create_verbnet_gl() on all of VerbNet. Results are
-    written to html/index.html.
+    Runs the main code in create_verbnet_gl() on all of VerbNet, which creates
+    VerbnetGL versios of Verbnet classes. Results are written to html/index.html.
 
 $ python verbnetgl.py -d
 
@@ -47,7 +45,6 @@ import os, sys, getopt
 from verbnetparser import read_verbnet
 from utils.ansi import BOLD, GREY, END
 from utils.writer import HtmlWriter, html_var
-from utils.search import search_by_predicate, search_by_argtype, search_by_ID
 from utils.formula import Pred, At, Has, Holds, Not, Var
 from utils import ansi
 import utils.tests
@@ -79,29 +76,34 @@ class VerbnetGL(object):
     def __str__(self):
         return "<VerbnetGL classes=%s>" % len(self.verb_classes)
 
+    def get_motion_classes(self):
+        return [vc for vc in self.verb_classes if vc.is_motion_class()]
+
+    def get_ch_of_poss_classes(self):
+        return [vc for vc in self.verb_classes if vc.is_ch_of_poss_class()]
+
+    def get_tr_of_info_classes(self):
+        return [vc for vc in self.verb_classes if vc.is_tr_of_info_class()]
+
+    def get_ch_of_state_classes(self):
+        return [vc for vc in self.verb_classes if vc.is_ch_of_state_class()]
+
     def test(self):
-        """Run a couple of tests."""
-        utils.tests.test_print_second_class(self.verb_classes)
-        utils.tests.test_print_some_classes(self.verb_classes)
-        utils.tests.test_search_by_ID(self.verb_classes)
-        utils.tests.test_ch_of_searches(self.verb_classes)
-        utils.tests.test_new_searches(self.verb_classes, GLVerbClass)
-        utils.tests.test_predicate_search(self.verb_classes)
+        """Run the informal tests from the test module."""
+        utils.tests.test_all(self.verb_classes, GLVerbClass)
 
     def write(self):
         """This is what produces the output with motion classes, possession classes,
-        change of state classes and change of info classes. Only the first class is
-        currently properly implemented."""
-        motion_vcs = [vc for vc in self.verb_classes if vc.is_motion_class()]
-        ch_of_poss_vcs = [vc for vc in self.verb_classes
-                          if vc.is_change_of_possession_class()]
-        ch_of_info_vcs = []
-        ch_of_state_vcs = []
+        change of state classes and change of info classes."""
+        motion_vcs = self.get_motion_classes()
+        ch_of_poss_vcs = self.get_ch_of_poss_classes()
+        tr_of_info_vcs = self.get_tr_of_info_classes()
+        ch_of_state_vcs = self.get_ch_of_state_classes()
         writer = HtmlWriter(url=VERBNET_URL, version=VERBNET_VERSION)
-        writer.write(motion_vcs, 'Motion Classes', 'motion')
-        writer.write(ch_of_poss_vcs, 'Change of Possession Classes', 'ch_of_poss')
-        writer.write(ch_of_info_vcs, 'Change of Info Classes', 'ch_of_info')
-        writer.write(ch_of_state_vcs, 'Change of State Classes', 'ch_of_x')
+        writer.write(motion_vcs, 'Motion', 'motion')
+        writer.write(ch_of_poss_vcs, 'Change of Possession', 'ch_of_poss')
+        writer.write(tr_of_info_vcs, 'Change of Info', 'ch_of_info')
+        writer.write(ch_of_state_vcs, 'Change of State', 'ch_of_state')
         writer.finish()
 
 
@@ -128,10 +130,26 @@ class GLVerbClass(object):
         """Return True if one of the frames is a motion frame."""
         return len([f for f in self.frames if f.is_motion_frame()]) > 0
 
-    def is_change_of_possession_class(self):
+    def is_ch_of_poss_class(self):
         """Return True if one of the frames is a ch_of_poss frame."""
         return len([f for f in self.frames
-                    if f.is_change_of_possession_frame()]) > 0
+                    if f.is_ch_of_poss_frame()]) > 0
+
+    def is_tr_of_info_class(self):
+        """Return True if one of the frames is a tr_of_info frame."""
+        return len([f for f in self.frames
+                    if f.is_tr_of_info_frame()]) > 0
+
+    def is_ch_of_state_class(self):
+        """Return True if one of the frames is a ch_of_state frame."""
+        return len([f for f in self.frames
+                    if f.is_ch_of_state_frame()]) > 0
+
+    def has_roles(self, role_types):
+        """Returns True if the role_types are all in the roles on the verb class,
+        returns False otherwise."""
+        class_roles = [r.role_type for r in self.roles]
+        return set(role_types) <= set(class_roles)
 
     def frames(self):
         return [GLFrame(self, frame) for frame in self.verbclass.frames]
@@ -227,10 +245,20 @@ class GLFrame(object):
         otherwise."""
         return True if self.find_predicates('motion') else False
 
-    def is_change_of_possession_frame(self):
+    def is_ch_of_poss_frame(self):
         """Returns True if one of the predicates has a 'ch_of_poss' argument value,
         returns False otherwise."""
         return True if self.find_predicates_with_argval('ch_of_poss') else False
+
+    def is_tr_of_info_frame(self):
+        """Returns True if one of the predicates has a 'tr_of_info' argument value,
+        returns False otherwise."""
+        return True if self.find_predicates_with_argval('tr_of_info') else False
+
+    def is_ch_of_state_frame(self):
+        """Returns True if one of the predicates has a 'ch_of_state' argument value,
+        returns False otherwise."""
+        return True if self.find_predicates_with_argval('ch_of_state') else False
 
     def add_oppositions(self):
         """Add oppositions for each frame to event and qualia structure. Note
@@ -245,7 +273,7 @@ class GLFrame(object):
         # disjoint or not.
         if self.is_motion_frame():
             self._add_motion_opposition()
-        if self.is_change_of_possession_frame():
+        if self.is_ch_of_poss_frame():
             self._add_possession_opposition()
 
     def _add_motion_opposition(self):
@@ -256,7 +284,9 @@ class GLFrame(object):
         motion = Pred('motion', [Var('e')])
         at1 = At(Var(moving_object[1]), Var(initial_location[1]))
         at2 = At(Var(moving_object[1]), Var(destination[1]))
-        self.qualia.add([motion, at1, Not(at1), at2, Not(at2)])
+        self.qualia.add([motion,
+                         Opposition(at1, Not(at1)),
+                         Opposition(Not(at2), at2)])
         event = Pred('event', [Var('e')])
         istate = Pred('initial_state', [Var('e'), Var('e1')])
         fstate = Pred('final_state', [Var('e'), Var('e2')])
@@ -266,6 +296,7 @@ class GLFrame(object):
                                      states=[State(self, [holds1]), State(self, [holds2])],
                                      formulas=[event, istate, holds1, fstate, holds2])
         self._debug1(moving_object, initial_location, destination)
+        #MotionOppositionFactory(self).make()
 
     def _add_possession_opposition(self):
         owner1 = self.get_role('Agent')
@@ -286,8 +317,8 @@ class GLFrame(object):
         self._debug1(thing, owner1, owner2)
 
     def get_role(self, rolename):
-        """Returns a pair of the role and the variable associated with it, use an
-        anonymous variable if the role is not expressed in the subcategorisation."""
+        """Returns a pair of the role and the variable associated with it, use
+        an anonymous variable if the role is not expressed in the subcat."""
         var = self.role2var.get(rolename)
         if var is None:
             var = Var.get_unbound_variable()
@@ -454,6 +485,8 @@ class EventStructure(object):
         self.var = var
         self.states = [] if states is None else states
         self.formulas = [] if formulas is None else formulas
+        if not self.states and not self.formulas:
+            self.formulas = [Pred('event', [Var('e')])]
 
     def __str__(self):
         return "{ var = %s, initial_state = %s, final_state = %s }" \
@@ -483,7 +516,9 @@ class EventStructure(object):
 
 class Qualia(object):
 
-    """Represents the verbframe's qualia structure, which is a list of formulas."""
+    """Represents the verbframe's qualia structure, which is a list of formulas
+    (actually, it is a list of predicates and oppositions, the latter technically
+    not being a formula)."""
 
     def __init__(self, glframe, formulas=None):
         self.glframe = glframe
@@ -501,6 +536,23 @@ class Qualia(object):
 
     def html(self):
         return "%s" % ' & '.join([f.html() for f in self.formulas])
+
+
+class Opposition(object):
+
+    """An opposition is simply a pair of two predicates where one is the negation
+    of the other. The first element of the pair is required to be indexed to an
+    earlier time than the second."""
+
+    def __init__(self, pred1, pred2):
+        self.pred1 = pred1
+        self.pred2 = pred2
+
+    def __str__(self):
+        return "Opposition(%s, %s)" % (self.pred1, self.pred2)
+
+    def html(self):
+        return "Opposition(%s, %s)" % (self.pred1.html(), self.pred2.html())
 
 
 # UTILITIES

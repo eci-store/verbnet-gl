@@ -11,6 +11,16 @@ from search import search_by_predicate, search_by_ID, search_by_argtype
 from search import search_by_themroles, search_by_POS, search_by_cat_and_role
 
 
+def test_all(verb_classes, GLVerbClass):
+    """Run all tests in here."""
+    test_print_second_class(verb_classes)
+    test_print_some_classes(verb_classes)
+    test_search_by_ID(verb_classes)
+    test_ch_of_searches(verb_classes)
+    test_new_searches(verb_classes, GLVerbClass)
+    test_predicate_search(verb_classes)
+
+
 def test_print_second_class(vn_classes):
     """Just print the first class to stdout."""
     prompt('test_print_second_class')

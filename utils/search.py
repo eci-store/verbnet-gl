@@ -2,8 +2,7 @@
 
 Module with search functions for Verbnet classes.
 
-TODO. Note that there is some redundancy with test methods on GLFrame, like
-is_motion_frame(). Start using those methods in the functions here.
+May at some point do some niftier search than it does now.
 
 """
 
