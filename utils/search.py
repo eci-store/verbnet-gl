@@ -2,37 +2,33 @@
 
 Module with search functions for Verbnet classes.
 
+TODO. Note that there is some redundancy with test methods on GLFrame, like
+is_motion_frame(). Start using those methods in the functions here.
+
 """
 
 def search_by_predicate(verbclasslist, pred_type):
     """Returns verbclasses that exactly match the predicate."""
-    successes = []
-    for vc in verbclasslist:
-        for frame in vc.frames:
-            for pred in frame.vnframe.predicates:
-                if pred.value[0] == pred_type:
-                    if vc not in successes:
-                        successes.append(vc)
-    return successes
-
-
-def search_by_argtype(verbclasslist, argtype, contains=False):
-    """Returns verbclass IDs that have predicates that contain the argtype.
-    Optional variable to allow for searching to see if the argtype contains a
-    string."""
     results = []
     for vc in verbclasslist:
         for frame in vc.frames:
             for pred in frame.vnframe.predicates:
-                for arg, arg_type in pred.argtypes:
-                    if not contains:
-                        if argtype == arg_type:
-                            if vc.ID not in results:
-                                results.append(vc.ID)
-                    else:
-                        if argtype in arg_type:
-                            if vc.ID not in results:
-                                results.append(vc.ID)
+                if pred.value == pred_type and vc not in results:
+                    results.append(vc)
+    return results
+
+
+def search_by_argtype(verbclasslist, argtype):
+    """Returns verbclasses that have predicates that contain the sought after
+    argtype. The argtype is the value of the argtype, for example, in the
+    argument ('ThemRole', '?Theme') the value is '?Theme'."""
+    results = []
+    for vc in verbclasslist:
+        for frame in vc.frames:
+            for pred in frame.vnframe.predicates:
+                for a_type, a_value in pred.args:
+                    if argtype == a_value and vc not in results:
+                        results.append(vc)
     return results
 
 
@@ -55,15 +51,13 @@ def search_by_ID(verbclasslist, ID, contains=False):
                 return vc
     return None
 
+
 def search_by_subclass_ID(subclass, ID):
     """Recursive search through subclasses to see if any match ID specified"""
     if subclass.ID == ID:
         return subclass
-    if len(subclass.subclasses) == 0:
-        if subclass.ID == ID:
-            return subclass
-        else:
-            return None
+    elif len(subclass.subclasses) == 0:
+        return None
     else:
         for subc in subclass.subclasses:
             result = search_by_subclass_ID(subc, ID)
@@ -72,19 +66,15 @@ def search_by_subclass_ID(subclass, ID):
         return None
 
 
-def search_by_themroles(verbclasslist, themroles, only=False):
-    """Returns verbclasses that contain specified thematic roles.
-    Only returns classes that contain every role in the list, with the option
-    to only return classes that contain all and only those roles."""
+def search_by_themroles(verbclasslist, themroles, all_and_only=False):
+    """Returns verbclasses that contain specified thematic roles. Search is case
+    sensitive. Only returns classes that contain every role in the list, with
+    the option to only return classes that contain all and only those roles."""
     results = []
-    nocase_themroles = [themrole.lower() for themrole in themroles]
     for vc in verbclasslist:
-        out = False
-        for themrole in vc.roles:
-            if themrole.role_type.lower() not in nocase_themroles:
-                out = True
-        if not out:
-            if only:
+        matching = [tr for tr in vc.roles if tr.role_type in themroles]
+        if len(matching) == len(vc.roles):
+            if all_and_only:
                 if len(themroles) == len(vc.roles):
                     results.append(vc)
             else:
@@ -92,13 +82,10 @@ def search_by_themroles(verbclasslist, themroles, only=False):
     return results
 
 
-def search_by_POS(verbclasslist, POS_list, only=False):
-    """Returns frames (and their verbclass's ID) that contain specified syntactic roles.
-    Only returns frames that contain every role in the list, with the option
-    to only return frames that contain all and only those roles.
-
-    TODO: consider ordering and differentiating between classes with 1 NP vs 2,
-    etc."""
+def search_by_POS(verbclasslist, POS_list, all_and_only=False):
+    """Returns frames (and their verbclass's ID) that contain specified syntactic
+    roles.  Only returns frames that contain every role in the list, with the
+    option to only return frames that contain all and only those roles."""
     results = []
     nocase_pos = [POS.lower() for POS in POS_list]
     for vc in verbclasslist:
@@ -108,7 +95,7 @@ def search_by_POS(verbclasslist, POS_list, only=False):
                 if member.cat.lower() not in nocase_pos:
                     out = True
             if not out:
-                if only:
+                if all_and_only:
                     if len(POS_list) == len(frame.subcat):
                         results.append((frame, vc.ID))
                 else:
@@ -116,39 +103,34 @@ def search_by_POS(verbclasslist, POS_list, only=False):
     return results
 
 
-def search_by_cat_and_role(verbclasslist, cat_role_tuples, only=False):
+def search_by_cat_and_role(verbclasses, cat_role_pairs, all_and_only=False):
     """Returns frames (and their verbclass's ID) that contain specified syntactic
-    roles (POS), where those roles have a specific semantic category (Agent, etc.)
-    Only returns frames that contain every role in the list, with the option
-    to only return frames that contain all and only those cat/roles combinations."""
+    categories that have a specific semantic role (Agent, etc.)  Only returns
+    frames that contain every role in the list, with the option to only return
+    frames that contain all and only those cat/roles combinations. Here is a
+    cat_role_pairs example: [('NP', 'Agent'), ('PREP', 'None')]."""
     results = []
-    nocase_tuples = [(unicode(POS.lower(), "utf-8"), unicode(role.lower(), "utf-8"))\
-                    for POS,role in cat_role_tuples]
-    for vc in verbclasslist:
+    for vc in verbclasses:
         for frame in vc.frames:
-            out = False
-            for targetcat, targetrole in nocase_tuples:
-                inner_loop = False
+            failed = False
+            for cat, role in cat_role_pairs:
+                found = False
                 for member in frame.subcat:
-                    cat = unicode(member.cat.lower(), "utf-8")
-                    role = unicode('none', "utf-8")
-                    if len(member.role) != 0:
-                        role = member.role[0].lower().encode('utf-8')
-                    if cat == targetcat:
-                        if role == targetrole:
-                            inner_loop = True
-                if not inner_loop:
-                    out = True
-            if not out:
-                if only:
-                    if len(cat_role_tuples) == len(frame.subcat):
+                    if cat == str(member.cat) and role == str(member.role):
+                        found = True
+                        break
+                if found is False:
+                    failed = True
+            if not failed:
+                if all_and_only:
+                    if len(cat_role_pairs) == len(frame.subcat):
                         results.append((frame, vc.ID))
                 else:
                     results.append((frame, vc.ID))
     return results
 
 
-# Four function to perform image schema related searches, can probably be
+# Four functions to perform image schema related searches, can probably be
 # somewhat simplified
 
 def image_schema_search(verbclasslist, scheme, second_round=True, inclusive=False):

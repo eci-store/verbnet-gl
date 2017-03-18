@@ -6,11 +6,11 @@ necessary given a VerbClass from verbnetparser.py.
 
 To run this do the following:
 
-First copy config.sample.txt into config.txt and edit it if needed by changing
-the verbnet location. The file config.txt is needed so the VerbNet parser can
-find the VerbNet directory.
+1. Copy config.sample.txt into config.txt and edit it if needed by changing the
+verbnet location. The file config.txt is needed so the VerbNet parser can find
+the VerbNet directory.
 
-Then run this script in one of the following ways:
+2. Run this script in one of the following ways:
 
 $ python verbnetgl.py
 
@@ -22,10 +22,15 @@ $ python verbnetgl.py -d
     Runs the main code in create_verbnet_gl() in debug mode, that is, on just
     the first 50 verb classes. Results are written to html/index.html.
 
-$ python verbnetgl.py -f list-motion-classes.txt
+$ python verbnetgl.py -f lists/motion-classes.txt
 
-    Runs the main code in create_verbnet_gl(), but now only n the classes listed
-    in list-motion-classes.txt. Results are written to html/index.html.
+    Runs the main code in create_verbnet_gl(), but now only on the classes
+    listed in lists/motion-classes.txt. Results are written to html/index.html.
+
+$ python verbnetgl.py -c give-13.1
+
+    Runs the main code in create_verbnet_gl(), but now only on the one class
+    given as an argument. Results are written to html/index.html.
 
 $ python verbnetgl.py -t
 $ python verbnetgl.py -td
@@ -33,16 +38,71 @@ $ python verbnetgl.py -td
    Runs a couple of tests, either using all of VerbNet or just the first 50
    classes. You will need to hit return before each test.
 
+The code here is designed to run on Verbnet 3.3.
+
 """
 
-import os, sys, itertools, getopt
+import os, sys, getopt
 
-from verbnetparser import VerbNetParser
-from writer import HtmlWriter, HtmlClassWriter
-from search import search_by_predicate, search_by_argtype
-from search import search_by_ID, search_by_subclass_ID
-from search import search_by_themroles, search_by_POS, search_by_cat_and_role
-from search import reverse_image_search, image_schema_search, image_schema_search2
+from verbnetparser import read_verbnet
+from utils.ansi import BOLD, GREY, END
+from utils.writer import HtmlWriter, html_var
+from utils.search import search_by_predicate, search_by_argtype, search_by_ID
+from utils.formula import Pred, At, Has, Holds, Not, Var
+from utils import ansi
+import utils.tests
+
+DEBUG = True
+DEBUG = False
+
+VERBNET_VERSION = '3.3'
+VERBNET_URL = 'http://verbs.colorado.edu/verb-index/vn3.3/vn/reference.php'
+
+
+class VerbnetGL(object):
+
+    """Class for enriching Verbnet with GL qualia and event structure."""
+
+    def __init__(self, debug_mode, filelist, vnclass):
+        """First read Verbnet, then transform all Verbnet classes into classes
+        enriched with GL notions."""
+        if debug_mode:
+            verb_classes = read_verbnet(max_count=50)
+        elif filelist is not None:
+            verb_classes = read_verbnet(file_list=filelist)
+        elif vnclass is not None:
+            verb_classes = read_verbnet(vnclass=vnclass)
+        else:
+            verb_classes = read_verbnet()
+        self.verb_classes = [GLVerbClass(vc) for vc in verb_classes]
+
+    def __str__(self):
+        return "<VerbnetGL classes=%s>" % len(self.verb_classes)
+
+    def test(self):
+        """Run a couple of tests."""
+        utils.tests.test_print_second_class(self.verb_classes)
+        utils.tests.test_print_some_classes(self.verb_classes)
+        utils.tests.test_search_by_ID(self.verb_classes)
+        utils.tests.test_ch_of_searches(self.verb_classes)
+        utils.tests.test_new_searches(self.verb_classes, GLVerbClass)
+        utils.tests.test_predicate_search(self.verb_classes)
+
+    def write(self):
+        """This is what produces the output with motion classes, possession classes,
+        change of state classes and change of info classes. Only the first class is
+        currently properly implemented."""
+        motion_vcs = [vc for vc in self.verb_classes if vc.is_motion_class()]
+        ch_of_poss_vcs = [vc for vc in self.verb_classes
+                          if vc.is_change_of_possession_class()]
+        ch_of_info_vcs = []
+        ch_of_state_vcs = []
+        writer = HtmlWriter(url=VERBNET_URL, version=VERBNET_VERSION)
+        writer.write(motion_vcs, 'Motion Classes', 'motion')
+        writer.write(ch_of_poss_vcs, 'Change of Possession Classes', 'ch_of_poss')
+        writer.write(ch_of_info_vcs, 'Change of Info Classes', 'ch_of_info')
+        writer.write(ch_of_state_vcs, 'Change of State Classes', 'ch_of_x')
+        writer.finish()
 
 
 class GLVerbClass(object):
@@ -56,55 +116,44 @@ class GLVerbClass(object):
         self.names = verbclass.names
         self.roles = verbclass.themroles
         self.frames = self.frames()
-        self.subclasses = [GLSubclass(sub, self.roles) for sub in verbclass.subclasses]
+        self.subclasses = [GLSubclass(sub, self.roles)
+                           for sub in verbclass.subclasses]
 
-    def __repr__(self):
-        return str(self.ID) + " = {\n\nroles = " + str(self.roles) + \
-               "\n\nframes = " + str(self.frames) + "\n}" + \
-               "\n Subclasses = " + str(self.subclasses)
+    def __str__(self):
+        return "<GLVerbClass \"%s\" roles=%s frames=%s subclasses=%s members=%s>" \
+            % (self.ID, len(self.roles), len(self.frames),
+               len(self.subclasses), len(self.members))
 
     def is_motion_class(self):
         """Return True if one of the frames is a motion frame."""
-        for f in self.frames:
-            if f.is_motion_frame():
-                return True
-        return False
+        return len([f for f in self.frames if f.is_motion_frame()]) > 0
 
-    def is_change_of_state_class(self):
-        """Return True if the class is a change-of-state class, which is defined as
-        having an argtype that contains ch_of in one of the frames."""
-        return True if [t for t in self.argtypes() if 'ch_of_' in t] else False
-
-    def is_change_of_info_class(self):
-        """Return True if the class is a change-of-info class, which is defined as
-        having an argtype that contains ch_of_info in one of the frames."""
-        return True if [t for t in self.argtypes() if 'ch_of_info' in t] else False
+    def is_change_of_possession_class(self):
+        """Return True if one of the frames is a ch_of_poss frame."""
+        return len([f for f in self.frames
+                    if f.is_change_of_possession_frame()]) > 0
 
     def frames(self):
         return [GLFrame(self, frame) for frame in self.verbclass.frames]
 
-    def argtypes(self):
-        """Return a set of all the argtypes found in all frames."""
-        argtypes = set()
+    def pp(self):
+        print bold(str(self)), "\n"
         for frame in self.frames:
-            for pred in frame.vnframe.predicates:
-                for arg, arg_type in pred.argtypes:
-                    argtypes.add(arg_type)
-        return list(argtypes)
+            frame.pp()
+            print
 
-    
 
 class GLSubclass(GLVerbClass):
 
     """Represents a subclass to a GLVerbClass. This needs to be different from
-    GLVerbClass because VerbNet seems to change the THEMROLES section of the 
+    GLVerbClass because VerbNet seems to change the THEMROLES section of the
     subclass to only include thematic roles that differ from the main class,
-    but does not list all the roles that stay the same. Since we need to update 
+    but does not list all the roles that stay the same. Since we need to update
     self.roles, we can't call __init__ on the superclass because that would call
     self.frames and self.subclasses before we updated our roles properly."""
-    
+
     # TODO: check this for proper nesting
-    
+
     def __init__(self, verbclass, parent_roles):
         self.verbclass = verbclass
         self.ID = verbclass.ID
@@ -114,8 +163,9 @@ class GLSubclass(GLVerbClass):
         self.subclass_only_roles = verbclass.themroles
         self.roles = self.themroles()
         self.frames = self.frames()
-        self.subclasses = [GLSubclass(sub, self.roles) for sub in verbclass.subclasses]   
-        
+        self.subclasses = [GLSubclass(sub, self.roles)
+                           for sub in verbclass.subclasses]
+
     def themroles(self):
         """Combines the thematic roles of the parent class and the current
         subclass. Replaces any version of the parent class's role with one from
@@ -132,154 +182,171 @@ class GLSubclass(GLVerbClass):
 
 
 class GLFrame(object):
-    """GL enhanced VN frame that adds qualia and event structure, and links 
-    syn/sem variables in the subcat to those in the event structure."""
-    
+
+    """GL enhanced VN frame that adds qualia and event structure, and links syn/sem
+    variables in the subcat to those in the event structure. Some parts of the
+    GLFrame are copied straight from the Frame it is created from, others are
+    adjusted somewhat (subcat) or built from scratch (qualia, events)."""
+
     def __init__(self, glverbclass, frame):
-        self.glverbclass = glverbclass
+        self.glverbclass = glverbclass          # instance of GLVerbClass
         self.vnframe = frame                    # instance of verbnetparser.Frame
         self.class_roles = glverbclass.roles    # list of verbnetparser.ThematicRoles
-        self.pri_description = frame.primary    # list of unicode strings
-        self.sec_description = frame.secondary  # list of unicode strings
-        self.example = frame.examples           # list of unicode strings
+        self.description = frame.description    # unicode string, primary description
+        self.examples = frame.examples          # list of unicode strings
+        self.predicates = frame.predicates      # list of verbnetparser.Predicate
+        self.syntax = frame.syntax              # list of verbnetparser.SyntacticRole
         self.subcat = Subcat(self)
-        self.qualia = None
+        self.qualia = Qualia(self)
         self.events = EventStructure(self)
         self.add_oppositions()
 
     def __str__(self):
         return "<GLFrame %s [%s] '%s'>" % \
-            (self.glverbclass.ID, ' '.join(self.pri_description), self.example[0])
-
-    def __repr__(self):
-        return "\n\n{ description = " + str(" ".join(self.pri_description)) + \
-            "\nexample = " + str(self.example[0]) + \
-            "\nsubcat = " + str(self.subcat) + \
-            "\nqualia = " + str(self.qualia) + \
-            "\nevents = {" + str(self.events) + "\t}\n"
+            (self.glverbclass.ID, self.description, self.examples[0])
 
     def find_predicates(self, pred_value):
         """Returns the list of Predicates where the value equals pred_value."""
-        # TODO: should forward to self.vnframe
-        return [p for p in self.vnframe.predicates if p.value[0] == pred_value]
+        return [p for p in self.predicates if p.value == pred_value]
 
-    def find_arguments(self, pred, arg):
-        """Return all arguments in pred where arg matches one of the argument's elements
-        (note that arguments are tuples of two strings, like <Event,during(E)>
-        or <ThemRole,Theme>)."""
-        # TODO: should be defined on Predicate
-        return [a for a in pred.argtypes if arg in a]
+    def find_predicates_with_argval(self, argvalue):
+        """Returns all those predicates that have an argument value equal to
+        argvalue. Note that arguments are pairs like <Event,during(E)> or
+        <ThemRole,Theme>. Does not just return the predicate but a pair of
+        predicate and argument which means that in some cases the same predicate
+        could be returned more than once, but with different arguments."""
+        answer = []
+        for pred in self.predicates:
+            for argument in pred.args:
+                if argument[1] == argvalue:
+                    answer.append([pred, argument])
+        return answer
 
     def is_motion_frame(self):
-        """Returns True if one of the predicates is 'motion', returns False otherwise."""
+        """Returns True if one of the predicates' value is 'motion', returns False
+        otherwise."""
         return True if self.find_predicates('motion') else False
 
+    def is_change_of_possession_frame(self):
+        """Returns True if one of the predicates has a 'ch_of_poss' argument value,
+        returns False otherwise."""
+        return True if self.find_predicates_with_argval('ch_of_poss') else False
+
     def add_oppositions(self):
-        """Add oppositions for each frame to event and qualia structure."""
-        # TODO: maybe pull this all out and add it to a OppositionFactory class.
+        """Add oppositions for each frame to event and qualia structure. Note
+        that this method may be pulled out and instead be put in a dedicated
+        OppositionFactory class."""
         # Use an auxiliary dictionary that has mappings from role names to
         # variables, taken from the subcat frame.
-        self.role2var = self._get_variables()
-        # So for now we just do motion verbs, will add more, but need to decide
-        # whether the groups of classes we do this for are disjoint or not.
+        self.role2var = self.subcat.get_variables()
+        # We restart numbering variables for each frame.
+        Var.reset_unbound_variable_count()
+        # TODO: need to decide whether the groups of classes we do this for are
+        # disjoint or not.
         if self.is_motion_frame():
             self._add_motion_opposition()
-
-    def _get_variables(self):
-        """Returns a dictionary of roles and variables from all elements of the
-        subcategorisation frame. The dictionary is indexed on the roles and
-        variables are integers, for example {'Beneficiary': 0, 'Agent': 1}."""
-        member_vars = {}
-        for submember in self.subcat:
-            # skip the event and skip prepositions
-            if submember.var not in [None, "e"]:
-                member_vars[submember.role[0]] = submember.var
-        return member_vars
+        if self.is_change_of_possession_frame():
+            self._add_possession_opposition()
 
     def _add_motion_opposition(self):
-        """Add motion opposition to wualia and event structure of motion frames."""
-        initial_location, destination = None, None
+        """Add motion opposition to qualia and event structure of motion frames."""
         moving_object = self._get_moving_object()
-        agent = self._get_agent()
         initial_location = self._get_initial_location()
         destination = self._get_destination()
-        self._add_default_opposition(initial_location, destination)
-        initial_state = State(self, moving_object[1], initial_location[1])
-        final_state = State(self, moving_object[1], destination[1])
-        opposition = Opposition(self, 'loc', [[initial_state, final_state]])
-        self.events = EventStructure(self, [[initial_state, final_state]])
-        self.qualia = Qualia(self, 'motion', opposition)
-        #self._debug1(agent, moving_object, initial_location, destination,
-        #             initial_state, final_state)
+        motion = Pred('motion', [Var('e')])
+        at1 = At(Var(moving_object[1]), Var(initial_location[1]))
+        at2 = At(Var(moving_object[1]), Var(destination[1]))
+        self.qualia.add([motion, at1, Not(at1), at2, Not(at2)])
+        event = Pred('event', [Var('e')])
+        istate = Pred('initial_state', [Var('e'), Var('e1')])
+        fstate = Pred('final_state', [Var('e'), Var('e2')])
+        holds1 = Holds(Var('e1'), at1)
+        holds2 = Holds(Var('e2'), at2)
+        self.events = EventStructure(self, 'e',
+                                     states=[State(self, [holds1]), State(self, [holds2])],
+                                     formulas=[event, istate, holds1, fstate, holds2])
+        self._debug1(moving_object, initial_location, destination)
+
+    def _add_possession_opposition(self):
+        owner1 = self.get_role('Agent')
+        owner2 = self.get_role('Recipient')
+        thing = self.get_role('Theme')
+        transfer = Pred('transfer', [Var('e')])
+        has1 = Has(Var(owner1[1]), Var(thing[1]))
+        has2 = Has(Var(owner2[1]), Var(thing[1]))
+        self.qualia.add([transfer, has1, Not(has1), has2, Not(has2)])
+        event = Pred('event', [Var('e')])
+        istate = Pred('initial_state', [Var('e'), Var('e1')])
+        fstate = Pred('final_state', [Var('e'), Var('e2')])
+        holds1 = Holds(Var('e1'), has1)
+        holds2 = Holds(Var('e2'), has2)
+        self.events = EventStructure(self, 'e',
+                                     states=[State(self, [holds1]), State(self, [holds2])],
+                                     formulas=[event, istate, holds1, fstate, holds2])
+        self._debug1(thing, owner1, owner2)
+
+    def get_role(self, rolename):
+        """Returns a pair of the role and the variable associated with it, use an
+        anonymous variable if the role is not expressed in the subcategorisation."""
+        var = self.role2var.get(rolename)
+        if var is None:
+            var = Var.get_unbound_variable()
+        return [rolename, var]
 
     def _get_moving_object(self):
-        """Get the role and the index of the moving object. Assumes that the moving
-        object is always the theme."""
-        # check whether there actually is a motion predicate
-        if not self.find_predicates('motion'):
-            print "WARNING: no Motion predicate found in", self
-        return ['Theme', str(self.role2var.get('Theme', '?'))]
-
-    def _get_agent(self):
-        """Get the role and index of the agent of the movement. Assumes the
-        cause is the agent."""
-        # check whether there is an agent if there is a cause predicate
-        cause_predicates = self.find_predicates('cause')
-        if cause_predicates:
-            args = self.find_arguments(cause_predicates[0], 'Agent')
-            if not args:
-                print 'WARNING: missing Agent in Cause predicate'
-        return ['Agent', str(self.role2var.get('Agent', '?'))]
+        """The moving object is expressed by the Theme role."""
+        return self.get_role('Theme')
 
     def _get_initial_location(self):
-        """For now just return the Initial_Location role and the index of it, if any. No
-        checking of predicates and no bitchy messages on missing roles."""
-        # TODO: we are using list of strings, should perhaps use some class, this
-        # same issue holds for the three other _get_X methods.
-        return ['Initial_Location', str(self.role2var.get('Initial_Location', '?'))]
+        """The initial location is expressed by the Initial_Location role."""
+        return self.get_role('Initial_Location')
 
     def _get_destination(self):
-        """For now just return the Destination role and the index of it, if any. No
-        checking of predicates and no bitchy messages on missing roles."""
-        return ['Destination', str(self.role2var.get('Destination', '?'))]
-
-    def _add_default_opposition(self, initial_location, destination):
-        """Sneaky way of adding in the opposition in case one or both of the locations
-        are anonymous. Overgenerates for those cases where motion is in-place."""
-        if initial_location[1] == '?' or destination[1] == '?':
-            if initial_location[1] == '?' and destination[1] == '?':
-                destination[1] = '-?'
-            elif initial_location[1] == '?':
-                initial_location[1] = '-' + destination[1]
-            elif destination[1] == '?':
-                destination[1] = '-' + initial_location[1]
+        """The destination is expressed by the Destination role."""
+        return self.get_role('Destination')
 
     def pp_predicates(self, indent=0):
-        print "%spredicates" % (indent * ' ')
+        print "%s%s" % (indent * ' ', ul('predicates'))
         for p in self.vnframe.predicates:
             print "%s   %s" % (indent * ' ', p)
 
     def pp_subcat(self, indent=0):
-        print "%ssubcat" % (indent * ' ')
+        print "%s%s" % (indent * ' ', ul('subcat'))
         for sc in self.subcat:
             print "%s   %s" % (indent * ' ', sc)
+
+    def pp_qualia(self, indent=0):
+        print "%s%s" % (indent * ' ', ul('qualia-structure'))
+        print "%s   %s" % (indent * ' ', self.qualia)
+
+    def pp_roles(self, indent=0):
+        print "%s%s" % (indent * ' ', ul('roles'))
+        for role in self.class_roles:
+            print "%s   %s" % (indent * ' ', role)
 
     def pp_variables(self, indent=0):
         print "%svariables = { %s }" \
             % (indent * ' ',
                ', '.join(["%s(%s)" % (r, v) for r, v in self.role2var.items()]))
 
-    def _debug1(self, agent, moving_object, initial_location, destination,
-                initial_state, final_state):
-        if self.glverbclass.ID in ('run-51.3.2', 'slide.11.2', 'snooze-40.4'):
-            print; print self;
-            self.pp_predicates(3); self.pp_subcat(3), self.pp_variables(3)
-            print '   agent  =', agent
-            print '   object =', moving_object
-            print '   start  =', initial_location
-            print '   end    =', destination
-            print '  ', initial_state
-            print '  ', final_state
+    def _debug1(self, moving_object, initial_location, destination):
+        if not DEBUG:
+            return
+        print; self.pp(); print; self.pp_variables(3); print
+        print "   | moving_object     =  %s" % moving_object
+        print "   | initial_location  =  %s" % initial_location
+        print "   | destination       =  %s" % destination
+
+    def pp(self, indent=0):
+        name = self.glverbclass.ID + ' -- ' + self.description
+        print "%s%s\n" % (indent * ' ', bold(name))
+        for example in self.examples:
+            print "   %s\"%s\"" % (indent * ' ', example)
+        print; self.pp_roles(indent+3)
+        print; self.pp_predicates(indent+3)
+        print; self.pp_subcat(indent+3)
+        print; self.pp_qualia(indent+3)
+        print; self.events.pp(indent+3)
 
 
 class Subcat(object):
@@ -294,25 +361,17 @@ class Subcat(object):
         self.glframe = glframe
         self.members = []
         i = 0
-        for synrole in self.glframe.vnframe.syntax:
-            if synrole.POS in ["ADV", "PREP", "ADJ"]:
-                self.members.append(SubcatMember(None, synrole, None))
+        for synrole in self.glframe.syntax:
+            if synrole.pos in ["ADV", "PREP", "ADJ"]:
+                self.members.append(SubcatElement(None, synrole))
                 continue
-            elif synrole.POS == "VERB":
-                self.members.append(SubcatMember("e", synrole, None))
+            elif synrole.pos == "VERB":
+                self.members.append(SubcatElement("e", synrole))
                 continue
-            added = False
-            for themrole in self.glframe.class_roles:
-                if str(synrole.value[0]).lower() == str(themrole.role_type).lower():
-                    if str(synrole.POS) == "NP":
-                        self.members.append(SubcatMember(i, synrole, themrole))
-                        i += 1
-                        added = True
-                    else:
-                        self.members.append(SubcatMember(None, synrole, themrole))
-                        added = True
-            if not added:
-                self.members.append(SubcatMember(None, synrole, None))
+            elif synrole.pos == "NP":
+                i += 1
+                var = "x%d" % i
+                self.members.append(SubcatElement(var, synrole))
 
     def __iter__(self):
         return iter(self.members)
@@ -320,230 +379,138 @@ class Subcat(object):
     def __len__(self):
         return len(self.members)
 
+    def get_variables(self):
+        """Returns a dictionary of roles and variables from all elements of the
+        subcategorisation frame. The dictionary is indexed on the roles and
+        variables are integers, for example {'Beneficiary': 0, 'Agent': 1}."""
+        variables = {}
+        for subcat_element in self:
+            # skip the event and skip prepositions
+            if subcat_element.var not in [None, "e"]:
+                variables[subcat_element.role] = subcat_element.var
+        return variables
 
-class SubcatMember(object):
 
-    """A combination of SyntacticRole and ThematicRole."""
+class SubcatElement(object):
 
-    def __init__(self, var, synrole, themrole):
+    """Stores the variable, category, role and restrictions of a subcat element.
+    Note that self.role is a string, usually with one role like 'Agent', but
+    also a list of prepositions like 'from out_of'."""
+
+    def __init__(self, var, synrole, themrole=None):
         self.var = var
-        self.cat = synrole.POS
-        self.role = synrole.value   #themrole.role_type won't work
-        if themrole is not None:
-            self.sel_res = themrole.sel_restrictions
-        else:
-            self.sel_res = synrole.restrictions
+        self.cat = synrole.pos
+        self.role = synrole.value
+        self.restrictions = synrole.restrictions
 
     def __repr__(self):
-        return "{ var = %s, cat = %s, role = %s } / %s " \
-            % (self.var, self.cat, self.role, self.sel_res)
+        restrictions = ''
+        if not self.restrictions.is_empty():
+            restrictions = " / %s" % self.restrictions
+        return "{ var = %s, cat = %s, role = %s }%s" \
+            % (self.var, self.cat, self.role, restrictions)
+
+    def html(self):
+        def add_class(text, classname):
+            return "<span class=%s>%s</span>" % (classname, text)
+        if self.role is not None and self.cat in ('NP', 'PP'):
+            return "%s(%s)" % (add_class(self.role, 'role'), html_var(self.var))
+        elif self.var == 'e':
+            return "%s(%s)" % (add_class('V', 'verb'), self.var)
+        elif self.role is not None:
+            return "{%s}" % add_class(self.role, 'prep')
+        elif not self.restrictions.is_empty():
+            return "{%s}" % add_class(self.restrictions, 'prep')
+        else:
+            return "{%s}" % add_class(self.cat, 'cat')
 
 
 class State(object):
-    
-    """Represents a state in the event structure For motion verbs, this gives the
-    variable assignment of the mover, and its location. For transfer verbs, this
-    gives the variable assignment of the object being transferred, and what
-    currently owns the object."""
 
-    # TODO. Should probably have several kinds of states, this one really is the
-    # state of an object being at a position (or being owned). Should als make a
-    # State a list of assignments rather than just the one.
+    """Represents a state in the event structure where a state is nothing more or
+    less than a list of predicates."""
 
-    def __init__(self, glframe, obj_var, pos_var):
+    def __init__(self, glframe, formulas):
         self.glframe = glframe
-        self.object = obj_var
-        self.position = pos_var
-        
-    def __repr__(self):
-        return "{ objects.%s.location = %s }" % (self.object, self.position)
+        self.formulas = formulas
+
+    def __str__(self):
+        return "[ %s ]" % ', '.join([str(f) for f in self.formulas])
+
+    def html(self):
+        return "[ %s ]" % ', '.join([f.html() for f in self.formulas])
 
 
 class EventStructure(object):
 
     """Defines the event structure for a particular frame of a verb"""
 
-    # TODO: adopt a list of states instead of just initial and final.
-
-    def __init__(self, glframe, states=None):
+    def __init__(self, glframe, var='e', states=None, formulas=None):
+        # TODO: for now we keep two ways of doing this, one with initial and
+        # final states and one with a list of formulas, probably remove the
+        # first (requires updating __str__() and pp() as well as removing
+        # initial_state() and final_state())
         self.glframe = glframe
-        if states is None:
-            states = []
-        self.var = "e"
-        self.initial_state = [state1 for state1, state2 in states]
-        self.final_state = [state2 for state1, state2 in states]
+        self.var = var
+        self.states = [] if states is None else states
+        self.formulas = [] if formulas is None else formulas
 
-    def __repr__(self):
+    def __str__(self):
         return "{ var = %s, initial_state = %s, final_state = %s }" \
             % (self.var, self.initial_state, self.final_state)
 
+    def initial_state(self):
+        try:
+            return self.states[0]
+        except IndexError:
+            return State(None, [])
 
-class Opposition(object):
+    def final_state(self):
+        try:
+            return self.states[-1]
+        except IndexError:
+            return State(None, [])
 
-    """Represents the opposition structure of the frame. Right now only tailored for
-    locations. Technically, an opposition should perhaps only have two states,
-    but we allow there to be a longer list."""
+    def pp(self, indent=0):
+        print "%s%s" % (indent * ' ', ul('event-structure'))
+        print "%s   var = %s" % (indent*' ', self.var)
+        print "%s   initial_state = %s" % (indent*' ', self.initial_state())
+        print "%s   final_state   = %s }" % (indent*' ', self.final_state())
 
-    # define opposition operator used give the type of change predicate
-    operator_mappings = { 'loc': 'At', 'pos': 'Has', 'info': 'Knows', 'state': 'State' }
+    def html(self):
+        return ', '.join([f.html() for f in self.formulas])
 
-    def __init__(self, glframe, type_of_change, states):
-        self.glframe = glframe
-        self.type_of_change = type_of_change
-        self.states = states
-        
-    def __repr__(self):
-        op = Opposition.operator_mappings.get(self.type_of_change, 'Op')
-        return ' '.join(["(%s(%s, %s), %s(%s, %s))" % \
-                         (op, start.object, start.position, op, end.object, end.position)
-                         for start, end in self.states])
- 
- 
+
 class Qualia(object):
 
-    """Represents the qualia structure of a verbframe, including opposition
-    structure."""
-    
-    def __init__(self, glframe, pred_type, opposition):
+    """Represents the verbframe's qualia structure, which is a list of formulas."""
+
+    def __init__(self, glframe, formulas=None):
         self.glframe = glframe
-        self.formal = pred_type
-        self.opposition = opposition
-        
-    def __repr__(self):
-        return "{ formal = " + str(self.formal) + "(e) AND Opposition" + \
-               str(self.opposition) + "}"
+        self.formulas = formulas
+        if formulas is None:
+            verb = self.glframe.glverbclass.ID.split('-')[0]
+            self.formulas = [Pred(verb, [Var('e')])]
+
+    def __str__(self):
+        return "%s" % ' & '.join([str(f) for f in self.formulas])
+
+    def add(self, formulas):
+        """Add formulas to the qualia."""
+        self.formulas.extend(formulas)
+
+    def html(self):
+        return "%s" % ' & '.join([f.html() for f in self.formulas])
 
 
-## THE MAIN FUNCTION
-
-def create_verbnet_gl(vn_classes):
-    """This is what produces the output with motion classes, possession classes,
-    change of state classes and change of info classes. Only th efirst class is
-    currently properly implemented."""
-    # TODO. We have three ways of finding classes: doing a search, setting a
-    # list manually, and checking a test method on the classes. Should probably
-    # use only one way of doing this and for this method that should probably be
-    # using the is_motion_class() method.
-    # TODO: write a test that compares results of using is_motion_class() versus
-    # search_by_predicate(vn_classes, "transfer")
-    motion_vcs = [vc for vc in vn_classes if vc.is_motion_class()]
-    transfer_vcs = search_by_predicate(vn_classes, "transfer")
-    # possession_results = search(vn_classes, "has_possession")
-    # print len(possession_results), [vc.ID for vc in possession_results]
-    # we only find three with the above so define them manually
-    possession = ['berry-13.7', 'cheat-10.6', 'contribute-13.2', 'equip-13.4.2',
-                 'exchange-13.6.1', 'fulfilling-13.4.1', 'get-13.5.1', 'give-13.1',
-                 'obtain-13.5.2', 'steal-10.5']
-    possession_vcs = [vc for vc in vn_classes if vc.ID in possession]
-    ch_of_state_vcs = [vc for vc in vn_classes if vc.is_change_of_state_class()]
-    ch_of_info_vcs = [vc for vc in vn_classes if vc.is_change_of_info_class()]
-    writer = HtmlWriter()
-    writer.write(motion_vcs + transfer_vcs, 'VN Motion Classes', 'motion')
-    writer.write(possession_vcs, 'VN Posession Classes', 'poss')
-    writer.write(ch_of_state_vcs, 'VN Change of State Classes', 'ch_of_x')
-    writer.write(ch_of_info_vcs, 'VN Change of Info Classes', 'ch_of_info')
-    writer.finish()
-
-
-## TEST FUNCTIONS
-
-def test_print_first_class(vn_classes):
-    """Just print the first class to stdout."""
-    print "\n%s" % (">" * 80)
-    print ">>> RUNNING test_print_first_class"
-    print ">>> Hit return to proceed..."
-    raw_input()
-    print vn_classes[0]
-
-
-def test_print_some_classes(vn_classes):
-    """Print a list of classes that match a couple of hand-picked predicates. The
-    results are written to the html directory."""
-    print "\n%s" % (">" * 80)
-    print ">>> RUNNING test_print_first_class"
-    print ">>> Hit return to proceed..."
-    raw_input()
-    preds = ["motion", "transfer", "adjust", "cause", "transfer_info",
-             "emotional_state", "location", "state", "wear"]
-    results = { p: search_by_predicate(vn_classes, p) for p in preds }
-    result_classes = [i for i in itertools.chain.from_iterable(results.values())]
-    result_classes = sorted(set(result_classes))
-    writer = HtmlWriter()
-    writer.write(result_classes, "VN Classes")
-    print "Results are written to html/index.html"
-
-
-def test_search_by_ID(vn_classes):
-    print "\n%s" % (">" * 80)
-    print ">>> RUNNING test_search_by_ID"
-    print ">>> Hit return to proceed..."
-    raw_input()
-    try:
-        print search_by_ID(vn_classes, "absorb-39.8")
-    except:
-        print "WARNING: could not find absorb-39.8"
-    try:
-        print search_by_ID(vn_classes, "swarm-47.5.1").subclasses[1]
-    except AttributeError:
-        print "WARNING: could not find swarm-47.5.1"
-
-
-def test_ch_of_searches(vn_classes):
-    # find all 'ch_of_' verb classes
-    print "\n%s" % (">" * 80)
-    print ">>> RUNNING test_ch_of_searches"
-    print ">>> Hit return to proceed..."
-    raw_input()
-    for argtype in ('ch_of_', 'ch_of_info', 'ch_of_pos', 'ch_of_poss',
-                    'ch_of_state', 'ch_of_loc', 'ch_of_location'):
-        results = search_by_argtype(vn_classes, argtype)
-        print "%s %s %s\n" % (len(results), argtype, ' '.join(results))
-    path_rel_results = search_by_argtype(vn_classes, "path_rel")
-    print 'number of path_rel classes:', len(path_rel_results)
-    path_less_ch = [vc.ID for vc in path_rel_results if vc.ID not in ch_of_results]
-    print 'path_rel classes with no ch_of:', path_less_ch, "\n"
-
-
-def test_new_searches(vn_classes):
-    print "\n%s" % (">" * 80)
-    print ">>> RUNNING test_new_searches"
-    print ">>> Hit return to proceed..."
-    raw_input()
-    for print_string, function, role_list, boolean in [
-            ("Verbclasses with Agent and Patient thematic roles:", search_by_themroles, ['Agent', 'Patient'], False),
-            ('Agent and Patient only classes:', search_by_themroles, ['Agent', 'Patient'], True),
-            ("Verbclasses with frames with NP and VERB syntactic roles:", search_by_POS, ['NP', 'VERB'], False),
-            ('NP and VERB only classes:', search_by_POS, ['NP', 'VERB'], True),
-            ("Verbclasses with frames with (NP, Agent) subcat members:", search_by_cat_and_role, [('NP', 'Agent')], False),
-            ('(NP, Agent) and (PREP, None) classes:', search_by_cat_and_role, [('NP', 'Agent'), ('PREP', 'None')], False),
-            ('(NP, Agent) and (VERB, None) only classes:', search_by_cat_and_role, [('NP', 'Agent'), ('VERB', 'None')], True) ]:
-        results = function(vn_classes, role_list, boolean)
-        ids = []
-        if results:
-            ids = [vc.ID for vc in results] if isinstance(results[0], GLVerbClass) \
-                  else [ID for frame, ID in results]
-            ids = sorted(list(set(ids)))
-        print "\nThere are %s cases of %s" % (len(ids), print_string)
-        print '  ', "\n   ".join([id for id in ids])
-
-
-## SOME UTILITIES
-
-def print_motion_classes():
-    """Print a list of all classes that have a motion frame."""
-    vn = VerbNetParser()
-    vn_classes = [GLVerbClass(vc) for vc in vn.verb_classes]
-    motion_classes = [c for c in vn_classes if c.is_motion_class()]
-    print len(motion_classes)
-    for c in motion_classes:
-        print c.ID
-
+# UTILITIES
 
 def read_options():
     debug_mode = False
     filelist = None
+    vnclass = None
     run_tests = False
-    opts, arg = getopt.getopt(sys.argv[1:], 'dtf:', [])
+    opts, arg = getopt.getopt(sys.argv[1:], 'dtf:c:', [])
     for opt, arg in opts:
         if opt == '-t':
             run_tests = True
@@ -551,33 +518,29 @@ def read_options():
             debug_mode = True
         if opt == '-f':
             filelist = arg
-    return debug_mode, filelist, run_tests
+        if opt == '-c':
+            vnclass = arg
+    return debug_mode, filelist, vnclass, run_tests
 
 
-def run_verbnetparser(debug_mode, filelist):
-    """Return the result of running the verbnet parser, using the options to
-    determine what to run it over."""
-    if debug_mode:
-        vn = VerbNetParser(max_count=50)
-    elif filelist is not None:
-        vn = VerbNetParser(file_list=filelist)
-    else:
-        vn = VerbNetParser()
-    return vn
+def bold(text):
+    if sys.platform in ('linux2', 'darwin'):
+        text = ansi.BOLD + text + ansi.END
+    return text
 
+
+def ul(text):
+    if sys.platform in ('linux2', 'darwin'):
+        text = ansi.LINE + text + ansi.END
+    return text
 
 
 if __name__ == '__main__':
 
-    debug_mode, filelist, run_tests = read_options()
-    vn = run_verbnetparser(debug_mode, filelist)
-    vn_classes = [GLVerbClass(vc) for vc in vn.verb_classes]
+    debug_mode, filelist, vnclass, run_tests = read_options()
+    vngl = VerbnetGL(debug_mode, filelist, vnclass)
 
     if run_tests:
-        test_print_first_class(vn_classes)
-        test_print_some_classes(vn_classes)
-        test_search_by_ID(vn_classes)
-        test_ch_of_searches(vn_classes)
-        test_new_searches(vn_classes)
+        vngl.test()
     else:
-        create_verbnet_gl(vn_classes)
+        vngl.write()

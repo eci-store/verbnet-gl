@@ -27,7 +27,7 @@ class PredicateStatistics(object):
         for vc in self.glverbclasses:
             for frame in vc.frames:
                 for pred in frame.vnframe.predicates:
-                    self.predicates[pred.value[0]] += 1
+                    self.predicates[pred.value] += 1
             for subclass in vc.subclasses:
                 sub_preds = self.recursive_collect(subclass)
                 self.predicates.update(sub_preds)
@@ -37,7 +37,7 @@ class PredicateStatistics(object):
         if len(subclass.subclasses) == 0:
             for frame in subclass.frames:
                 for pred in frame.vnframe.predicates:
-                    self.predicates[pred.value[0]] += 1
+                    self.predicates[pred.value] += 1
             return predicates
         else:
             for subc in subclass.subclasses:

@@ -6,12 +6,7 @@ verb frames.
 
 """
 
-import os
-from bs4 import BeautifulSoup as soup
-
-__author__ = ["Todd Curcuru & Marc Verhagen"]
-__date__ = "3/15/2016"
-__email__ = ["tcurcuru@brandeis.edu, marc@cs.brandeis.edu"]
+import os, bs4
 
 
 def get_verbnet_directory():
@@ -24,70 +19,49 @@ def get_verbnet_directory():
 VERBNET_PATH = get_verbnet_directory()
 
 
-class VerbNetParser(object):
-    """Parse VerbNet XML files, and turn them into a list of BeautifulSoup 
-    objects"""
-    
-    def __init__(self, max_count=None, file_list=None):
-        """Take all verbnet files, if max_count is used then take the first max_count
-        files, if file_list is used, read the filenames from the file."""
-        fnames = [f for f in os.listdir(VERBNET_PATH) if f.endswith(".xml")]
-        if max_count is not None:
-            fnames = fnames[:max_count]
-        if file_list is not None:
-            fnames = ["%s.xml" % f for f in open(file_list).read().split()]
-        self.filenames = [os.path.join(VERBNET_PATH, fname) for fname in fnames]
-        self.parsed_files = self.parse_files()
-        self.verb_classes = [VerbClass(parse) for parse in self.parsed_files]
-
-    def parse_files(self):
-        """Parse a list of XML files using BeautifulSoup. Returns list of parsed
-        soup objects"""
-        parsed_files = []
-        for fname in self.filenames:
-            parsed_files.append(soup(open(fname), "lxml-xml"))
-        return parsed_files
+def read_verbnet(max_count=None, file_list=None, vnclass=None):
+    """Parse verbnet files and return a list of VerbClasses. Read all the verbnet
+    files, but just take the first max_count files if max_count is used, or read
+    filenames from a file if file_list is used."""
+    fnames = [f for f in os.listdir(VERBNET_PATH) if f.endswith(".xml")]
+    if max_count is not None:
+        fnames = fnames[:max_count]
+    if file_list is not None:
+        fnames = ["%s.xml" % f for f in open(file_list).read().split()]
+    if vnclass is not None:
+        fnames = ["%s.xml" % vnclass]
+    filenames = [os.path.join(VERBNET_PATH, fname) for fname in fnames]
+    soups = [bs4.BeautifulSoup(open(fname), "lxml-xml") for fname in filenames]
+    return [VerbClass(fname, s) for fname, s in zip(filenames, soups)]
 
 
-class AbstractXML(object):
-    """Abstract class to be inherited by other classes that share the same 
-    features"""
-    
-    def __init__(self, soup):
-        self.soup = soup
-        
-    def get_category(self, cat, special_soup=None):
-        """Extracts the category from a soup, with the option to specify a soup. 
-        
-        For MEMBERs, we have:
-        name (lexeme),
-        wn (WordNet category)
-        grouping (PropBank grouping)"""
-        if not special_soup:
-            special_soup = self.soup
-        try:
-            return special_soup.get(cat).split()
-        except AttributeError:
-            return []
+class VerbClass(object):
 
-
-class VerbClass(AbstractXML):
-    """Represents a single class of verbs in VerbNet (all verbs from the same 
+    """Represents a single class of verbs in VerbNet (all verbs from the same
     XML file)."""
+
     # TODO: Check if nested subclasses have issues
 
-    def __init__(self, soup):
+    def __init__(self, fname, soup):
+        self.fname = fname
         self.soup = soup
-        try:
-            self.ID = self.get_category("ID", self.soup.VNCLASS)[0]
-        except IndexError:
-            print self.get_category("ID", self.soup.VNSUBCLASS), self.soup
-            self.ID = self.get_category("ID", self.soup.VNSUBCLASS)[0]
+        vnclass = self.soup.VNCLASS
+        if vnclass is not None:
+            # see if you have a VNCLASS tag and get the ID from there
+            self.ID = vnclass.get("ID")
+        else:
+            # else self.soup is a VNSUBCLASS tag and get the ID from there
+            self.ID = self.soup.get("ID")
         self.members = self.members()
         self.frames = self.frames()
-        self.names = [mem.get_category('name')[0] for mem in self.members]
+        self.names = [mem.name for mem in self.members]
         self.themroles = self.themroles()
         self.subclasses = self.subclass()
+
+    def __str__(self):
+        return "<VerbClass \"%s\" roles=%s frames=%s subclasses=%s members=%s>" \
+            % (self.ID, len(self.themroles), len(self.frames),
+               len(self.subclasses), len(self.members))
 
     def __repr__(self):
         return str(self.ID) + "\n" + str([mem.__repr__() for mem in self.members]) \
@@ -98,197 +72,219 @@ class VerbClass(AbstractXML):
 
     def members(self):
         """Get all members of a verb class"""
-        return [Member(mem_soup) for mem_soup in self.soup.MEMBERS.find_all("MEMBER")]
-    
+        return [Member(mem_soup)
+                for mem_soup in self.soup.MEMBERS.find_all("MEMBER")]
+
     def frames(self):
         """Get all frames for a verb class, seems to be shared by all members
         of the class."""
-        return [Frame(frame_soup, self.ID) for frame_soup in self.soup.FRAMES.find_all("FRAME")]
-        
+        return [Frame(frame_soup, self.ID)
+                for frame_soup in self.soup.FRAMES.find_all("FRAME")]
+
     def themroles(self):
-        """Get all the thematic roles for a verb class ans their selectional 
+        """Get all the thematic roles for a verb class ans their selectional
         restrictions."""
-        return [ThematicRole(them_soup) for them_soup in 
-                self.soup.THEMROLES.find_all("THEMROLE")]
-    
+        return [ThematicRole(them_soup)
+                for them_soup in self.soup.THEMROLES.find_all("THEMROLE")]
+
     def subclass(self):
-        """Get every subclass listed, if any"""
-        subclasses_soup = self.soup.find_all("SUBCLASSES")
-        if len(subclasses_soup[0].text) < 1:
-            return []
-        return [VerbClass(sub_soup) for sub_soup in \
-                self.soup.SUBCLASSES.find_all("VNSUBCLASS", recursive=False)]
+        """Create a VerbClass instance for every subclass listed."""
+        return [VerbClass(self.fname, sub_soup) for sub_soup
+                in self.soup.SUBCLASSES.find_all("VNSUBCLASS", recursive=False)]
 
 
-class Member(AbstractXML):
+class Member(object):
+
     """Represents a single member of a VerbClass, with associated name, WordNet
     category, and PropBank grouping."""
-    
+
     def __init__(self, soup):
         self.soup = soup
-        self.name = self.get_category('name')
-        self.wn = self.get_category('wn')
-        self.grouping = self.get_category('grouping')
-                
+        self.name = self.soup.get('name')
+        self.wn = self.soup.get('wn')
+        self.grouping = self.soup.get('grouping')
+
     def __repr__(self):
-        return str(self.name + self.wn + self.grouping)
+        return "<Member %s %s %s>" % (self.name, self.wn, self.grouping)
 
 
-class Frame(AbstractXML):
+class Frame(object):
+
     """Represents a single verb frame in VerbNet, with a description, examples,
     syntax, and semantics """
 
     def __init__(self, soup, class_ID):
         self.soup = soup
         self.class_ID = class_ID
-        self.description_num = self.get_category('descriptionNumber', 
-                                                 self.soup.DESCRIPTION)
-        self.primary = self.get_category('primary', self.soup.DESCRIPTION)
-        self.secondary = self.get_category('secondary', self.soup.DESCRIPTION)
-        self.xtag = self.get_category('xtag', self.soup.DESCRIPTION)
-        self.examples = [example.text for example in self.soup.EXAMPLES.find_all("EXAMPLE")]
+        self.description = self.soup.DESCRIPTION.get('primary')
+        self.examples = [e.text for e in self.soup.EXAMPLES.find_all("EXAMPLE")]
         self.syntax = self.get_syntax()
-        self.predicates = [Predicate(pred) for pred in self.soup.SEMANTICS.find_all("PRED")]
-    
+        self.predicates = [Predicate(p) for p in self.soup.SEMANTICS.find_all("PRED")]
+
     def __repr__(self):
-        return "\nDN: " + str(self.description_num) + \
-               "\nPrimary: " + str(self.primary) + \
-               "\nSecondary: " + str(self.secondary) + \
-               "\nXtag: " + str(self.xtag) + \
+        return "\nDescription: " + str(self.description) + \
                "\nExamples: " + str(self.examples) + \
                "\nSyntax: " + str(self.syntax) + \
                "\nPredicates: " + str(self.predicates) + "\n"
 
     def get_syntax(self):
-        raw_roles = [SyntacticRole(role) for role in self.soup.SYNTAX.children]
-        roles = []
-        for role in raw_roles:
-            if role.POS != None:
-                roles.append(role)
+        syntax_elements = [c for c in self.soup.SYNTAX.children
+                           if isinstance(c, bs4.element.Tag)]
+        roles = [SyntacticRole(soup) for soup in syntax_elements]
+        # there used to be a test for the value of pos, now just write a warning
+        # if we find a missing pos
+        for role in roles:
+            if role.pos is None:
+                print "Warning: empty pos in %s" % role
         return roles
 
 
-class ThematicRole(AbstractXML):
-    """Represents an entry in the "Roles" section in VerbNet, which is basically 
-    a list of all roles for a given verb class, with possible selectional 
-    restrictions"""
-    
-    def __init__(self, soup):
-        self.soup = soup
-        self.role_type = self.get_category('type')[0]
-        self.sel_restrictions = self.sel_restrictions(self.soup.SELRESTRS)
-        
-    def sel_restrictions(self, soup):
-        """Finds all the selectional restrictions of the thematic roles and 
-        returns them as a string"""
-        try:
-            a = soup.contents                 # Get rid of \n noise
-        except AttributeError:
-            return
-        if len(self.soup.contents) == 0:        # empty SELRESTRS
-            return []
-        elif len([child for child in soup.children]) == 0:
-            return self.get_category('Value', soup) + self.get_category('type', soup)
-        elif len(self.get_category('logic', soup)) > 0:
-            children = ['OR'] + [self.sel_restrictions(child) for child in soup.children]
-            return [child for child in children if child is not None]
-        elif len([child for child in soup.children]) == 3:
-            return self.sel_restrictions(soup.find_all('SELRESTR')[0])
-        else:
-            return ['AND'] + [self.sel_restrictions(child) for child in soup.find_all('SELRESTR')]
-        
-    def __repr__(self):
-        return "\n\t" + str(self.role_type) + " / " + str(self.sel_restrictions)
-        
+class ThematicRole(object):
 
-class Predicate(AbstractXML):
-    """Represents the different predicates assigned to a frame"""
-    
+    """Represents an entry in the "Roles" section in VerbNet, which is basically
+    a list of all roles for a given verb class, with possible selectional
+    restrictions"""
+
     def __init__(self, soup):
         self.soup = soup
-        self.value = self.get_category('value')
-        self.args = self.soup.find_all('ARG')
-        self.argtypes = [(self.get_category('type', arg)[0],
-                          self.get_category('value', arg)[0]) for arg in self.args]
+        self.role_type = self.soup.get('type')
+        self.sel_restrictions = SelectionalRestrictions(self.soup.SELRESTRS)
 
     def __str__(self):
-        return "%s(%s)" % (self.value[0], ', '.join([at[1] for at in self.argtypes]))
+        if self.sel_restrictions.is_empty():
+            return self.role_type
+        else:
+            return "%s / %s" % (self.role_type, self.sel_restrictions)
 
-    def __repr__(self):
-        return "Value: " + str(self.value[0]) + " -- " + str(self.argtypes)
+    def html(self):
+        def role(text): return "<span class=role>%s</span>" % text
+        if self.sel_restrictions.is_empty():
+            return role(self.role_type)
+        else:
+            return "%s / %s" % (role(self.role_type), self.sel_restrictions)
 
 
-class SyntacticRole(AbstractXML):
-    """Represents a syntactic role assigned to a frame"""
-    
+class Predicate(object):
+
+    """Represents the different predicates assigned to a frame"""
+
     def __init__(self, soup):
         self.soup = soup
-        self.POS = self.soup.name
-        self.value = self.get_category('value')
-        self.restrictions = self.restrictions()
-        
-    def restrictions(self):
-        """Check for selectional restrictions
-        NP has value and SYNRESTRS which have Value and type
-        PREP has value sometimes and SELRESTRS with Value and type
-        SYN/SELRESTRS can be empty
-        VERB seems empty"""
-        try:
-            if str(self.POS) == "PREP":
-                raw_children = self.soup.find_all('SELRESTR')
-            else:
-                raw_children = self.soup.find_all('SYNRESTR')
-        except AttributeError:
-            return None
-            
-        children = []
-        for child in raw_children:
-            children.append(self.get_category('Value', child)[0])
-            children.append(self.get_category('type', child)[0])
-        return children
-        
+        self.value = self.soup.get('value')
+        args = self.soup.find_all('ARG')
+        self.args = [(arg.get('type'), arg.get('value')) for arg in args]
+
+    def __str__(self):
+        return "%s(%s)" % (self.value, ', '.join([at[1] for at in self.args]))
+
     def __repr__(self):
-        return "\n" + str(self.POS) + "\tValue: " + str(self.value) \
-                    + "\tRestrs: " + str(self.restrictions)
-            
+        return "Value: " + str(self.value) + " -- " + str(self.args)
 
-def search(verbclasslist, pred_type=None, themroles=None, synroles=None, semroles=None):
-    """Returns frames for verbclasses that match search parameters
-    TODO: figure out what it means to search for themroles, synroles, and semroles"""
-    successes = []
-    for vc in verbclasslist:
-        for frame in vc.frames:
-            for pred in frame.predicates:
-                if pred.value[0] == pred_type:
-                    successes.append((vc, frame))
-    return successes
+    def find_arguments(self, arg):
+        """Return all arguments in self.args where arg matches one of the argument's
+        elements.  Note that an argument is a pair of an argument type and an
+        argument value, as in <Event,during(E)> or <ThemRole,Theme>."""
+        return [a for a in self.args if arg in a]
 
 
-def test():
-    vnp = VerbNetParser(max_count=50)
-    count =  len(vnp.parsed_files)
-    print count, 'classes'
-    vc = vnp.verb_classes[-1]
-    mems = vnp.parsed_files[-1].MEMBERS
-    print
-    print vc.ID
-    print '   names', ' '.join(vc.names)
-    print'   members'
-    for m in mems.find_all("MEMBER"):
-        print '     ', m
-    #results = search(vnp.verb_classes, "motion")
-    #print len(results)
-    #for frame in results:
-    #    print frame
-    print
-    for vc in vnp.verb_classes:
-        if len(vc.subclasses) >= 1:
-            print vc.ID
-            for subclass in vc.subclasses:
-                if len(subclass.subclasses) > 0:
-                    print '  ', subclass.ID
+class SyntacticRole(object):
+
+    """Represents a syntactic role assigned to a frame"""
+
+    def __init__(self, soup):
+        self.soup = soup
+        self.pos = self.soup.name
+        self.value = self.soup.get('value')
+        self.restrictions = None
+        self.restrictions = SyntacticRestrictions(self.soup.SYNRESTRS)
+        # some syntactic roles have semantic selection restrictions on them, try
+        # to collect them when there are no syntactic restrictions
+        # TODO: must check where all restrictions occur
+        if self.restrictions.is_empty():
+            if self.soup.SELRESTRS is not None:
+                self.restrictions = SelectionalRestrictions(self.soup.SELRESTRS)
 
 
-if __name__ == '__main__':
+def __str__(self):
+        return "<SyntacticRole pos=%s value=%s restrictions=%s>" \
+            % (self.pos, self.value, self.restrictions)
 
-    test()
+
+class Restrictions(object):
+
+    """Abstract class with common functionality for selectional restrictions and
+    syntactic restrictions."""
+
+    def __str__(self):
+        if self.is_empty():
+            return '()'
+        op = ' & ' if self.logic == 'and' else ' | '
+        return "(%s)" % op.join([str(s) for s in self.restrictions])
+
+    def is_empty(self):
+        return self.restrictions == []
+
+    def set_restrictions(self, tagname):
+        """Set the restrictions given the tagname. Make sure that self.logic is set to
+        None if there are no restrictions."""
+        soups = self.soup.find_all(tagname)
+        self.restrictions = [Restriction(soup) for soup in soups]
+        if not self.restrictions:
+            self.logic = None
+
+
+class SelectionalRestrictions(Restrictions):
+
+    """Stores information in the SELRESTRS tag. The list of SELREST tags inside will
+    be put in self.selections. The SELRESTRS tag has an optional attribute named
+    'logic', if it is expressed its value is always 'or'. If not expressed and
+    the list of SELRESTR is not empty, then it is assumed to be 'and', if the
+    list is empty than 'logic' will be set to None."""
+
+    # TODO: check whether absence of 'or' indeed means 'and'
+
+    def __init__(self, soup):
+        self.soup = soup
+        self.name = self.soup.name
+        self.logic = self.soup.get('logic', 'and')
+        self.set_restrictions('SELRESTR')
+
+
+class SyntacticRestrictions(Restrictions):
+
+    """Stores information in the SYNRESTRS tag. The list of SYNREST tags inside will
+    be put in self.selections. This class is slightly simpler than its counterpart
+    SelectionalRestrictions since it never has the 'logic' attribute. However, it
+    is assumed to be 'and'."""
+
+    # TODO: check whether absence of 'logic' attribute indeed means 'and'
+
+    def __init__(self, soup):
+        self.soup = soup
+        if self.soup is None:
+            self.logic = None
+            self.restrictions = []
+        else:
+            self.name = self.soup.name
+            self.logic = 'and'
+            self.set_restrictions('SYNRESTR')
+
+
+class Restriction(object):
+
+    """Stores the content of SELRESTR or SYNRESTR, which has 'Value' and 'type'
+    attributes, for example <SELRESTR Value="+" type="animate"/>."""
+
+    def __init__(self, soup):
+        self.soup = soup
+        self.name = self.soup.name
+        self.srvalue = self.soup.get('Value')
+        self.srtype = self.soup.get('type')
+
+    def __str__(self):
+        return "%s%s" % (self.srvalue, self.srtype)
+
+
+def psoup(soup):
+    """Utility to print the soup xml on one line."""
+    print "SOUP - %s" % str(soup).replace("\n", '')

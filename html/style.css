@@ -1,19 +1,46 @@
 
-table { margin: 5pt; margin-bottom: 10pt; border: 1px solid darkgrey; }
+body { width: 1000px; margin: 5pt; }
+
+table { margin-bottom: 10pt; border: 1px solid darkgrey; width: 100%}
 table.noborder { border: 0px solid darkgrey; }
 
-h1 { padding: 10px;  margin: 5pt; margin-bottom: 15pt; border: 1px solid black; width:980px; }
+/* skyblue = rgb(135, 206, 250), mimicking verbnet page */
+h1 { padding: 10px;  margin-bottom: 15pt; border: 1px solid gray;
+     background-color: skyblue; }
 
 a:link { color: black; text-decoration: none; }
 a:visited { color: darkblue; text-decoration: none; }
 a:hover { color: darkred; text-decoration: underline; font-weight: xbold; }
 a:active { color: black; text-decoration: none; }
 
-.list { margin: 10pt; padding-left: 8pt; border: 1px solid darkgrey; width: 150pt; background-color: e8ffff; }
-.header { background-color: skyblue; }
-.vnlink { background-color: e8ffff; }
-.description { background-color: skyblue; font-size: 120%; }
-.vn { background-color: e8ffff; }
-.qualia { background-color: lightyellow; }
-.event { background-color: lightyellow; }
+/* used in variables: "x<sub>2</sub>" */
+sub { font-size: 60%; }
+
+/* link to verbnet on index page */
+.header_link { padding-left: 5pt; margin-bottom: 10pt; font-size: 125%; font-weight: bold}
+
+/* header row of tables on index page */
+.header { background-color: skyblue; border: 1px solid red; }
+
+/* other rows of tables on index page */
+.vnlink { background-color: #e8ffff; }
+
+
+/* frame row with description of frame */
+tr.description, tr.roles {
+    background-color: rgb(195, 230, 252); /* skyblue tinted by 0.5 */
+    font-weight: bold; }
+
+/* other frame rows */
+tr.vn { background-color: #e8ffff; }
+tr.qualia { background-color: #e8ffff; }
+tr.event { background-color: #e8ffff; }
+
+/* predicates formatted as in verbnet page */
 .pred { font-weight: bold; color: darkred; font-variant: small-caps; }
+
+/* displaying subcat elements*/
+.role { font-weight: bold; font-variant: small-caps; }
+.verb { font-weight: bold; color: darkgreen; font-variant: small-caps; }
+.prep { font-weight: bold; color: darkblue; font-variant: small-caps; }
+.cat { font-variant: small-caps; }

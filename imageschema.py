@@ -8,17 +8,15 @@ these classes are then instantiated at the end of this file, to be used in an
 image search function in verbnetgl.py
 
 The main function is create_schema_to_verbnet_mappings(), which creates a bunch
-of html pages with mappnigs between image schema and VerbNet.
+of html pages with mappings between image schema and VerbNet.
 
 """
 
 from verbnetparser import VerbNetParser
 import verbnetgl
-from writer import HtmlWriter, HtmlClassWriter
-from search import search_by_predicate, search_by_argtype
-from search import search_by_ID, search_by_subclass_ID
-from search import search_by_themroles, search_by_POS, search_by_cat_and_role
-from search import reverse_image_search, image_schema_search, image_schema_search2
+from utils.writer import HtmlClassWriter
+from utils.search import search_by_ID
+from utils.search import reverse_image_search, image_schema_search, image_schema_search2
 
 
 class ImageScheme(object):
