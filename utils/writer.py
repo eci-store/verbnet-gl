@@ -151,13 +151,24 @@ class HtmlClassWriter(object):
         self.fh.write("</tr>\n")
 
     def pp_html_event(self, gl_frame):
+        if True:
+            # use new way of printing this
+            self.pp_html_event_new(gl_frame)
+        else:
+            # ... but keep the old one around for now
+            self.fh.write("\n<tr class=event valign=top>\n")
+            self.fh.write("  <td>Event structure")
+            self.fh.write("  <td>var = %s<br>\n" % gl_frame.events.var)
+            self.fh.write("      initial_state = %s<br>\n"
+                          % gl_frame.events.initial_state().html())
+            self.fh.write("      final_state = %s\n"
+                          % gl_frame.events.final_state().html())
+            self.fh.write("</tr>\n")
+
+    def pp_html_event_new(self, gl_frame):
         self.fh.write("\n<tr class=event valign=top>\n")
         self.fh.write("  <td>Event structure")
-        self.fh.write("  <td>var = %s<br>\n" % gl_frame.events.var)
-        self.fh.write("      initial_state = %s<br>\n"
-                      % gl_frame.events.initial_state().html())
-        self.fh.write("      final_state = %s\n"
-                      % gl_frame.events.final_state().html())
+        self.fh.write("  <td>%s\n" % (gl_frame.events.html()))
         self.fh.write("</tr>\n")
 
 

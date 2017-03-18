@@ -6,10 +6,6 @@ verb frames.
 
 """
 
-__author__  =  ["Todd Curcuru & Marc Verhagen"]
-__date__    =  "3/15/2016"
-__email__   =  ["tcurcuru@brandeis.edu, marc@cs.brandeis.edu"]
-
 import os, bs4
 
 
@@ -41,14 +37,13 @@ def read_verbnet(max_count=None, file_list=None, vnclass=None):
 
 class VerbClass(object):
 
-    """Represents a single class of verbs in VerbNet (all verbs from the same 
+    """Represents a single class of verbs in VerbNet (all verbs from the same
     XML file)."""
 
     # TODO: Check if nested subclasses have issues
 
     def __init__(self, fname, soup):
         self.fname = fname
-        #print '\n',fname
         self.soup = soup
         vnclass = self.soup.VNCLASS
         if vnclass is not None:
@@ -85,9 +80,9 @@ class VerbClass(object):
         of the class."""
         return [Frame(frame_soup, self.ID)
                 for frame_soup in self.soup.FRAMES.find_all("FRAME")]
-        
+
     def themroles(self):
-        """Get all the thematic roles for a verb class ans their selectional 
+        """Get all the thematic roles for a verb class ans their selectional
         restrictions."""
         return [ThematicRole(them_soup)
                 for them_soup in self.soup.THEMROLES.find_all("THEMROLE")]
@@ -102,15 +97,15 @@ class Member(object):
 
     """Represents a single member of a VerbClass, with associated name, WordNet
     category, and PropBank grouping."""
-    
+
     def __init__(self, soup):
         self.soup = soup
         self.name = self.soup.get('name')
         self.wn = self.soup.get('wn')
         self.grouping = self.soup.get('grouping')
-                
+
     def __repr__(self):
-        return "<Member %s %s %s>" %  (self.name, self.wn, self.grouping)
+        return "<Member %s %s %s>" % (self.name, self.wn, self.grouping)
 
 
 class Frame(object):
@@ -146,8 +141,8 @@ class Frame(object):
 
 class ThematicRole(object):
 
-    """Represents an entry in the "Roles" section in VerbNet, which is basically 
-    a list of all roles for a given verb class, with possible selectional 
+    """Represents an entry in the "Roles" section in VerbNet, which is basically
+    a list of all roles for a given verb class, with possible selectional
     restrictions"""
 
     def __init__(self, soup):
@@ -172,7 +167,7 @@ class ThematicRole(object):
 class Predicate(object):
 
     """Represents the different predicates assigned to a frame"""
-    
+
     def __init__(self, soup):
         self.soup = soup
         self.value = self.soup.get('value')
@@ -190,7 +185,6 @@ class Predicate(object):
         elements.  Note that an argument is a pair of an argument type and an
         argument value, as in <Event,during(E)> or <ThemRole,Theme>."""
         return [a for a in self.args if arg in a]
-
 
 
 class SyntacticRole(object):
@@ -248,7 +242,7 @@ class SelectionalRestrictions(Restrictions):
     list is empty than 'logic' will be set to None."""
 
     # TODO: check whether absence of 'or' indeed means 'and'
-    
+
     def __init__(self, soup):
         self.soup = soup
         self.name = self.soup.name
@@ -293,4 +287,4 @@ class Restriction(object):
 
 def psoup(soup):
     """Utility to print the soup xml on one line."""
-    print "SOUP - %s" % str(soup).replace("\n",'')
+    print "SOUP - %s" % str(soup).replace("\n", '')

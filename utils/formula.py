@@ -8,7 +8,7 @@ Simple implementation for formulas.
 class Formula(object):
 
     """Simple implementation for formulas. A formula is (1) a predicate like
-    motion(e), (2) a variable like x or x1, or (3) a negation of a formula."""
+    motion(e), (2) a variable like x or x1, or (3) a negation of a predicate."""
 
     def __ne__(self, other):
         return self.__eq__(other)
@@ -16,8 +16,8 @@ class Formula(object):
 
 class Pred(Formula):
 
-    """To implement things like motion(e) and At(x,y), but also more complex
-    things like holds(t1,At(x,y))."""
+    """To implement things like motion(e) and At(x1,x2), but also more complex
+    things like holds(te,At(x1,x2))."""
 
     def __init__(self, pred, formulas):
         self.pred = pred
@@ -36,47 +36,18 @@ class Pred(Formula):
 
 
 class At(Pred):
-
     def __init__(self, object_var, location_var):
-        # This is just like a regular Pred, but store indivudual elements in
-        # special variables for easy access
-        self.pred = 'At'
-        self.formulas = [object_var, location_var]
-        self.obj = self.formulas[0]
-        self.location = self.formulas[1]
-
-    def set_location(self, new_location):
-        # Updating the location must be done for both places where it is defined
-        self.formulas[1] = new_location
-        self.location = new_location
+        Pred.__init__(self, 'At', [object_var, location_var])
 
 
 class Has(Pred):
-
     def __init__(self, owner_var, object_var, ):
-        # This is just like a regular Pred, but store indivudual elements in
-        # special variables for easy access
-        self.pred = 'Has'
-        self.formulas = [owner_var, object_var]
-        # TODO: instead of the following, maybe use something like
-        # self.slots = { 'time': 0, 'object': 1, 'owner': 2 }
-        self.owner = self.formulas[0]
-        self.obj = self.formulas[1]
-
-    def set_owner(self, new_owner):
-        # Updating the owner must be done for both places where it is defined
-        # TODO: this could be done through the slots
-        self.formulas[0] = new_owner
-        self.owner = new_owner
+        Pred.__init__(self, 'Has', [owner_var, object_var])
 
 
 class Holds(Pred):
-
     def __init__(self, time_var, formula):
-        self.pred = 'Holds'
-        self.formulas = [time_var, formula]
-        self.time = time_var
-        self.formula = formula
+        Pred.__init__(self, 'Holds', [time_var, formula])
 
 
 class Not(Formula):
@@ -98,9 +69,21 @@ class Not(Formula):
 
 class Var(Formula):
 
-    """Implements a variable, mostly so we can print it nicely. Variables can
-    be a single letter like 'x' or a letter with an integer like 'x1' or the
-    anonomous variable '?'."""
+    """Implements a variable, mostly so we can print it nicely. Variables can be a
+    single letter like 'x' or a letter with an integer like 'x1' or the anonomous
+    variable '?'. Also keeps track of counts for variables that are not used in the
+    subcategorisation."""
+
+    variable_count = 0
+
+    @classmethod
+    def get_unbound_variable(cls):
+        Var.variable_count += 1
+        return "y%d" % Var.variable_count
+
+    @classmethod
+    def reset_unbound_variable_count(cls):
+        Var.variable_count = 0
 
     def __init__(self, variable):
         self.ID = variable

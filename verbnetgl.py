@@ -146,9 +146,9 @@ class GLVerbClass(object):
 class GLSubclass(GLVerbClass):
 
     """Represents a subclass to a GLVerbClass. This needs to be different from
-    GLVerbClass because VerbNet seems to change the THEMROLES section of the 
+    GLVerbClass because VerbNet seems to change the THEMROLES section of the
     subclass to only include thematic roles that differ from the main class,
-    but does not list all the roles that stay the same. Since we need to update 
+    but does not list all the roles that stay the same. Since we need to update
     self.roles, we can't call __init__ on the superclass because that would call
     self.frames and self.subclasses before we updated our roles properly."""
 
@@ -239,8 +239,10 @@ class GLFrame(object):
         # Use an auxiliary dictionary that has mappings from role names to
         # variables, taken from the subcat frame.
         self.role2var = self.subcat.get_variables()
-        # So for now we just do motion verbs, will add more, but need to decide
-        # whether the groups of classes we do this for are disjoint or not.
+        # We restart numbering variables for each frame.
+        Var.reset_unbound_variable_count()
+        # TODO: need to decide whether the groups of classes we do this for are
+        # disjoint or not.
         if self.is_motion_frame():
             self._add_motion_opposition()
         if self.is_change_of_possession_frame():
@@ -254,19 +256,15 @@ class GLFrame(object):
         motion = Pred('motion', [Var('e')])
         at1 = At(Var(moving_object[1]), Var(initial_location[1]))
         at2 = At(Var(moving_object[1]), Var(destination[1]))
-        not_at1 = Not(at1)
-        not_at2 = Not(at2)
-        holds1 = Holds(Var('t1'), at1)
-        if at1 == at2:
-            holds2 = Not(Holds(Var('t2'), at2))
-        else:
-            holds2 = Holds(Var('t2'), at2)
-        formulas = self.qualia.formulas + [motion, at1, not_at1]
-        for f in [at2, not_at2]:
-            if f not in formulas:
-                formulas.append(f)
-        self.events = EventStructure(self, 'e', [State(self, [holds1]), State(self, [holds2])])
-        self.qualia = Qualia(self, formulas)
+        self.qualia.add([motion, at1, Not(at1), at2, Not(at2)])
+        event = Pred('event', [Var('e')])
+        istate = Pred('initial_state', [Var('e'), Var('e1')])
+        fstate = Pred('final_state', [Var('e'), Var('e2')])
+        holds1 = Holds(Var('e1'), at1)
+        holds2 = Holds(Var('e2'), at2)
+        self.events = EventStructure(self, 'e',
+                                     states=[State(self, [holds1]), State(self, [holds2])],
+                                     formulas=[event, istate, holds1, fstate, holds2])
         self._debug1(moving_object, initial_location, destination)
 
     def _add_possession_opposition(self):
@@ -276,25 +274,24 @@ class GLFrame(object):
         transfer = Pred('transfer', [Var('e')])
         has1 = Has(Var(owner1[1]), Var(thing[1]))
         has2 = Has(Var(owner2[1]), Var(thing[1]))
-        not_has1 = Not(has1)
-        not_has2 = Not(has2)
-        holds1 = Holds(Var('t1'), has1)
-        if has1 == has2:
-            holds2 = Not(Holds(Var('t2'), has2))
-        else:
-            holds2 = Holds(Var('t2'), has2)
-        formulas = self.qualia.formulas + [transfer, has1, not_has1]
-        for f in [has2, not_has2]:
-            if f not in formulas:
-                formulas.append(f)
-        self.events = EventStructure(self, 'e', [State(self, [holds1]), State(self, [holds2])])
-        self.qualia = Qualia(self, formulas)
+        self.qualia.add([transfer, has1, Not(has1), has2, Not(has2)])
+        event = Pred('event', [Var('e')])
+        istate = Pred('initial_state', [Var('e'), Var('e1')])
+        fstate = Pred('final_state', [Var('e'), Var('e2')])
+        holds1 = Holds(Var('e1'), has1)
+        holds2 = Holds(Var('e2'), has2)
+        self.events = EventStructure(self, 'e',
+                                     states=[State(self, [holds1]), State(self, [holds2])],
+                                     formulas=[event, istate, holds1, fstate, holds2])
         self._debug1(thing, owner1, owner2)
 
     def get_role(self, rolename):
         """Returns a pair of the role and the variable associated with it, use an
         anonymous variable if the role is not expressed in the subcategorisation."""
-        return [rolename, self.role2var.get(rolename, '?')]
+        var = self.role2var.get(rolename)
+        if var is None:
+            var = Var.get_unbound_variable()
+        return [rolename, var]
 
     def _get_moving_object(self):
         """The moving object is expressed by the Theme role."""
@@ -448,12 +445,15 @@ class EventStructure(object):
 
     """Defines the event structure for a particular frame of a verb"""
 
-    def __init__(self, glframe, var='e', states=None):
-        if states is None:
-            states = []
+    def __init__(self, glframe, var='e', states=None, formulas=None):
+        # TODO: for now we keep two ways of doing this, one with initial and
+        # final states and one with a list of formulas, probably remove the
+        # first (requires updating __str__() and pp() as well as removing
+        # initial_state() and final_state())
         self.glframe = glframe
         self.var = var
-        self.states = states
+        self.states = [] if states is None else states
+        self.formulas = [] if formulas is None else formulas
 
     def __str__(self):
         return "{ var = %s, initial_state = %s, final_state = %s }" \
@@ -477,6 +477,9 @@ class EventStructure(object):
         print "%s   initial_state = %s" % (indent*' ', self.initial_state())
         print "%s   final_state   = %s }" % (indent*' ', self.final_state())
 
+    def html(self):
+        return ', '.join([f.html() for f in self.formulas])
+
 
 class Qualia(object):
 
@@ -491,6 +494,10 @@ class Qualia(object):
 
     def __str__(self):
         return "%s" % ' & '.join([str(f) for f in self.formulas])
+
+    def add(self, formulas):
+        """Add formulas to the qualia."""
+        self.formulas.extend(formulas)
 
     def html(self):
         return "%s" % ' & '.join([f.html() for f in self.formulas])
