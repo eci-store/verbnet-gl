@@ -2,16 +2,7 @@
 
 Code to automatically expand VerbNet classes with GL qualia and event structure.
 
-To run this you first need to get a version of VerbNet, this code was developed with versions 3.2.4 and 3.3 in mind.
-
-Then copy the file `config.sample.txt` to `config.txt` and edit it to set the VerbNet directory:
-
-```
-$ cp config.sample.txt config.txt
-$ YOUR_FAVOURITE_EDITOR config.txt
-```
-
-Then run the main program:
+To run this you first need to get a version of VerbNet, this code was developed for version 3.3 so that's the version you should get. Then copy the file `config.sample.txt` to `config.txt` and edit the value of VERBNET_PATH to set the VerbNet directory. Then you can run the main program:
 
 ```
 $ python verbnetgl.py
