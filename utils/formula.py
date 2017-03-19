@@ -32,7 +32,8 @@ class Pred(Formula):
         return (self.pred == other.pred) and (self.formulas == other.formulas)
 
     def html(self):
-        return "%s(%s)" % (self.pred, ', '.join([f.html() for f in self.formulas]))
+        return "<span class=pred>%s</span>(%s)" \
+            % (self.pred, ', '.join([f.html() for f in self.formulas]))
 
 
 class At(Pred):

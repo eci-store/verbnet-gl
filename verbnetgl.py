@@ -106,6 +106,10 @@ class VerbnetGL(object):
         writer.write(ch_of_state_vcs, 'Change of State', 'ch_of_state')
         writer.finish()
 
+    def print_class_roles(self):
+        for vc in self.verb_classes:
+            print "%-30s\t%s" % (vc.ID, ' '.join([r.role_type for r in vc.roles]))
+
 
 class GLVerbClass(object):
 
@@ -261,9 +265,7 @@ class GLFrame(object):
         return True if self.find_predicates_with_argval('ch_of_state') else False
 
     def add_oppositions(self):
-        """Add oppositions for each frame to event and qualia structure. Note
-        that this method may be pulled out and instead be put in a dedicated
-        OppositionFactory class."""
+        """Add oppositions for each frame to event and qualia structure."""
         # Use an auxiliary dictionary that has mappings from role names to
         # variables, taken from the subcat frame.
         self.role2var = self.subcat.get_variables()
@@ -272,49 +274,9 @@ class GLFrame(object):
         # TODO: need to decide whether the groups of classes we do this for are
         # disjoint or not.
         if self.is_motion_frame():
-            self._add_motion_opposition()
+            GLMotionFactory(self).make()
         if self.is_ch_of_poss_frame():
-            self._add_possession_opposition()
-
-    def _add_motion_opposition(self):
-        """Add motion opposition to qualia and event structure of motion frames."""
-        moving_object = self._get_moving_object()
-        initial_location = self._get_initial_location()
-        destination = self._get_destination()
-        motion = Pred('motion', [Var('e')])
-        at1 = At(Var(moving_object[1]), Var(initial_location[1]))
-        at2 = At(Var(moving_object[1]), Var(destination[1]))
-        self.qualia.add([motion,
-                         Opposition(at1, Not(at1)),
-                         Opposition(Not(at2), at2)])
-        event = Pred('event', [Var('e')])
-        istate = Pred('initial_state', [Var('e'), Var('e1')])
-        fstate = Pred('final_state', [Var('e'), Var('e2')])
-        holds1 = Holds(Var('e1'), at1)
-        holds2 = Holds(Var('e2'), at2)
-        self.events = EventStructure(self, 'e',
-                                     states=[State(self, [holds1]), State(self, [holds2])],
-                                     formulas=[event, istate, holds1, fstate, holds2])
-        self._debug1(moving_object, initial_location, destination)
-        #MotionOppositionFactory(self).make()
-
-    def _add_possession_opposition(self):
-        owner1 = self.get_role('Agent')
-        owner2 = self.get_role('Recipient')
-        thing = self.get_role('Theme')
-        transfer = Pred('transfer', [Var('e')])
-        has1 = Has(Var(owner1[1]), Var(thing[1]))
-        has2 = Has(Var(owner2[1]), Var(thing[1]))
-        self.qualia.add([transfer, has1, Not(has1), has2, Not(has2)])
-        event = Pred('event', [Var('e')])
-        istate = Pred('initial_state', [Var('e'), Var('e1')])
-        fstate = Pred('final_state', [Var('e'), Var('e2')])
-        holds1 = Holds(Var('e1'), has1)
-        holds2 = Holds(Var('e2'), has2)
-        self.events = EventStructure(self, 'e',
-                                     states=[State(self, [holds1]), State(self, [holds2])],
-                                     formulas=[event, istate, holds1, fstate, holds2])
-        self._debug1(thing, owner1, owner2)
+            GLChangeOfPossessionFactory(self).make()
 
     def get_role(self, rolename):
         """Returns a pair of the role and the variable associated with it, use
@@ -359,14 +321,6 @@ class GLFrame(object):
         print "%svariables = { %s }" \
             % (indent * ' ',
                ', '.join(["%s(%s)" % (r, v) for r, v in self.role2var.items()]))
-
-    def _debug1(self, moving_object, initial_location, destination):
-        if not DEBUG:
-            return
-        print; self.pp(); print; self.pp_variables(3); print
-        print "   | moving_object     =  %s" % moving_object
-        print "   | initial_location  =  %s" % initial_location
-        print "   | destination       =  %s" % destination
 
     def pp(self, indent=0):
         name = self.glverbclass.ID + ' -- ' + self.description
@@ -538,6 +492,134 @@ class Qualia(object):
         return "%s" % ' & '.join([f.html() for f in self.formulas])
 
 
+class GLFactory(object):
+
+    """Subclasses of GLFactory take a GLFrame and then add qualia and event
+    structure to it."""
+
+    @classmethod
+    def determine_cases(cls, glframe):
+        # TODO: it is a bit redundant that this is done for each frame while the
+        # roles are on the verbclass, refactor this.
+        cases = []
+        for role_types in cls.cases:
+            if glframe.glverbclass.has_roles(role_types):
+                cases.append(role_types)
+        return cases
+
+    def __init__(self, glframe):
+        self.glframe = glframe
+
+    def frame_description(self):
+        return "%s [%s] '%s'" % (self.glframe.glverbclass.ID,
+                                 self.glframe.description,
+                                 self.glframe.examples[0])
+
+    def pp_cases(self, cases):
+        print "\n%s\n" % self.frame_description()
+        for c in cases:
+            print '  ', '-'.join([str(r) for r in c])
+
+    def debug(self, roles):
+        if not DEBUG:
+            return
+        print; self.glframe.pp(); print; self.glframe.pp_variables(3); print
+        for role in roles:
+            print "   | %-16s  =  %s" % (role[0], role[1])
+
+
+class GLMotionFactory(GLFactory):
+
+    """Add motion oppositions and other motion predicates to the qualia and event
+    structure. Preliminary version that deals with only one basic case."""
+
+    cases = [
+        ('Theme', 'Initial_Location', 'Destination'),
+        ('Theme', 'Destination'),
+        ('Agent', 'Theme', 'Trajectory'),
+        ('Agent', 'Theme', 'Location'),
+        ('Theme', 'Source', 'Goal'),
+        ('Theme', 'Goal'),
+        ('Agent', 'Location'),
+    ]
+
+    def make(self):
+        cases = self.__class__.determine_cases(self.glframe)
+        # self.pp_cases()
+        if not cases:
+            print "WARNING: no case for", self.frame_description()
+        elif cases[0] == ('Theme', 'Initial_Location', 'Destination'):
+            self.harvest_obj_source_destination()
+        elif cases[0] == ('Theme', 'Destination'):
+            self.harvest_obj_source_destination()
+        elif cases[0] == ('Agent', 'Theme', 'Trajectory'):
+            pass
+        elif cases[0] == ('Theme', 'Source', 'Goal'):
+            pass
+        elif cases[0] == ('Agent', 'Theme', 'Location'):
+            pass
+        elif cases[0] == ('Theme', 'Goal'):
+            pass
+
+    def harvest_obj_source_destination(self):
+        moving_object = self.glframe._get_moving_object()
+        initial_location = self.glframe._get_initial_location()
+        destination = self.glframe._get_destination()
+        motion = Pred('motion', [Var('e')])
+        at1 = At(Var(moving_object[1]), Var(initial_location[1]))
+        at2 = At(Var(moving_object[1]), Var(destination[1]))
+        self.glframe.qualia.add([motion,
+                         Opposition(at1, Not(at1)),
+                         Opposition(Not(at2), at2)])
+        event = Pred('event', [Var('e')])
+        istate = Pred('initial_state', [Var('e'), Var('e1')])
+        fstate = Pred('final_state', [Var('e'), Var('e2')])
+        holds1 = Holds(Var('e1'), at1)
+        holds2 = Holds(Var('e2'), at2)
+        self.glframe.events = EventStructure(self, 'e',
+                                     states=[State(self, [holds1]), State(self, [holds2])],
+                                     formulas=[event, istate, holds1, fstate, holds2])
+        self.debug([('moving_object', moving_object),
+                    ('initial_location', initial_location),
+                    ('destination', destination)])
+
+
+class GLChangeOfPossessionFactory(GLFactory):
+
+    """Add possession oppositions and other possession predicates to the qualia and event
+    structure. Even more preliminary than GLMotionFactory."""
+
+    cases = [
+        ('Agent', 'Recipient', 'Theme'),
+    ]
+
+    def make(self):
+        cases = self.__class__.determine_cases(self.glframe)
+        # self.pp_cases()
+        if not cases:
+            print "WARNING: no case for", self.frame_description()
+        elif cases[0] == ('Agent', 'Recipient', 'Theme'):
+            self.harvest_agent_recipient_theme()
+
+    def harvest_agent_recipient_theme(self):
+        owner1 = self.glframe.get_role('Agent')
+        owner2 = self.glframe.get_role('Recipient')
+        thing = self.glframe.get_role('Theme')
+        transfer = Pred('transfer', [Var('e')])
+        has1 = Has(Var(owner1[1]), Var(thing[1]))
+        has2 = Has(Var(owner2[1]), Var(thing[1]))
+        self.glframe.qualia.add([transfer, has1, Not(has1), has2, Not(has2)])
+        event = Pred('event', [Var('e')])
+        istate = Pred('initial_state', [Var('e'), Var('e1')])
+        fstate = Pred('final_state', [Var('e'), Var('e2')])
+        holds1 = Holds(Var('e1'), has1)
+        holds2 = Holds(Var('e2'), has2)
+        self.glframe.events = EventStructure(self, 'e',
+                                     states=[State(self, [holds1]), State(self, [holds2])],
+                                     formulas=[event, istate, holds1, fstate, holds2])
+        self.debug([('thing',thing), ('original_owner', owner1), ('new_owner', owner2)])
+
+
 class Opposition(object):
 
     """An opposition is simply a pair of two predicates where one is the negation
@@ -552,7 +634,8 @@ class Opposition(object):
         return "Opposition(%s, %s)" % (self.pred1, self.pred2)
 
     def html(self):
-        return "Opposition(%s, %s)" % (self.pred1.html(), self.pred2.html())
+        return "<nobr><span class=opposition>Opposition</span>(%s, %s)</nobr>" \
+            % (self.pred1.html(), self.pred2.html())
 
 
 # UTILITIES
@@ -596,3 +679,5 @@ if __name__ == '__main__':
         vngl.test()
     else:
         vngl.write()
+
+    vngl.print_class_roles()
