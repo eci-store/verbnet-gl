@@ -186,6 +186,10 @@ class Predicate(object):
         argument value, as in <Event,during(E)> or <ThemRole,Theme>."""
         return [a for a in self.args if arg in a]
 
+    def html(self):
+        args = ', '.join([arg[1] for arg in self.args])
+        return "<span class=pred>%s</span>(%s)" % (self.value, args)
+
 
 class SyntacticRole(object):
 
@@ -204,8 +208,7 @@ class SyntacticRole(object):
             if self.soup.SELRESTRS is not None:
                 self.restrictions = SelectionalRestrictions(self.soup.SELRESTRS)
 
-
-def __str__(self):
+    def __str__(self):
         return "<SyntacticRole pos=%s value=%s restrictions=%s>" \
             % (self.pos, self.value, self.restrictions)
 

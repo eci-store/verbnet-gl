@@ -32,7 +32,8 @@ class Pred(Formula):
         return (self.pred == other.pred) and (self.formulas == other.formulas)
 
     def html(self):
-        return "%s(%s)" % (self.pred, ', '.join([f.html() for f in self.formulas]))
+        return "<span class=pred>%s</span>(%s)" \
+            % (self.pred.lower(), ', '.join([f.html() for f in self.formulas]))
 
 
 class At(Pred):
@@ -40,14 +41,14 @@ class At(Pred):
         Pred.__init__(self, 'At', [object_var, location_var])
 
 
-class Has(Pred):
+class Have(Pred):
     def __init__(self, owner_var, object_var, ):
-        Pred.__init__(self, 'Has', [owner_var, object_var])
+        Pred.__init__(self, 'Have', [owner_var, object_var])
 
 
 class Holds(Pred):
     def __init__(self, time_var, formula):
-        Pred.__init__(self, 'Holds', [time_var, formula])
+        Pred.__init__(self, 'Holds-in', [time_var, formula])
 
 
 class Not(Formula):
@@ -69,17 +70,16 @@ class Not(Formula):
 
 class Var(Formula):
 
-    """Implements a variable, mostly so we can print it nicely. Variables can be a
-    single letter like 'x' or a letter with an integer like 'x1' or the anonomous
-    variable '?'. Also keeps track of counts for variables that are not used in the
-    subcategorisation."""
+    """Implements a variable, mostly so we can print it nicely. Variables can be
+    a string like 'Traj' or a letter with an integer like 'x1'. Also keeps track
+    of counts for variables that are not used in the subcategorisation."""
 
     variable_count = 0
 
     @classmethod
     def get_unbound_variable(cls):
         Var.variable_count += 1
-        return "y%d" % Var.variable_count
+        return "x%d" % Var.variable_count
 
     @classmethod
     def reset_unbound_variable_count(cls):
@@ -97,7 +97,7 @@ class Var(Formula):
         return self.ID == other.ID
 
     def html(self):
-        if len(self.ID) == 1:
-            return self.ID
+        if self.ID[0] == 'x':
+            return "<i>%s<sub>%s</sub></i>" % (self.ID[0], self.ID[1:])
         else:
-            return "%s<sub>%s</sub>" % (self.ID[0], self.ID[1:])
+            return "<i>%s</i>" % self.ID
