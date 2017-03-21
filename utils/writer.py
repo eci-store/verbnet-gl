@@ -24,7 +24,8 @@ class HtmlWriter(object):
     def _write_begin(self):
         self.index.write("<html>\n")
         self.index.write("<head>\n")
-        self.index.write("<link rel=\"stylesheet\" type=\"text/css\" href=\"style.css\">\n")
+        self.index.write("<link rel=\"stylesheet\" " +
+                         "type=\"text/css\" href=\"style.css\">\n")
         self.index.write("<style>\n")
         self.index.write("body, table { width: unset; }\n")
         self.index.write("</style>\n")
@@ -33,18 +34,20 @@ class HtmlWriter(object):
         if self.verbnet_version is not None:
             vn = "Verbnet %s" % self.verbnet_version
             href = "href=%s" % self.verbnet_url
-            self.index.write("<p class=header_link>Verbnet-GL, based on <a %s>%s</a></p>\n" % (href, vn))
-        self.index.write("<table class=noborder >\n")
+            self.index.write("<p class=header_link>Verbnet-GL," +
+                             " based on <a %s>%s</a></p>\n" % (href, vn))
+        self.index.write("<table class=noborder cellspacing=5>\n")
         self.index.write("<tr valign=top>\n")
 
     def write(self, gl_verb_classes, header, group=''):
         self.index.write("<td>\n")
-        self.index.write("<table cellpadding=8 cellspacing=0>\n")
+        self.index.write("<table class=bordered cellpadding=8 cellspacing=0>\n")
         self.index.write("<tr class=header><td>%s</a>\n" % header)
         for verbclass in gl_verb_classes:
             infix = group + '-' if group else ''
             class_file = "vnclass-%s%s.html" % (infix, verbclass.ID)
-            self.index.write("<tr class=vnlink><td><a href=\"%s\">%s</a>\n" % (class_file, verbclass.ID))
+            self.index.write("<tr class=vnlink><td><a href=\"%s\">%s</a>\n"
+                             % (class_file, verbclass.ID))
             fh =  open(os.path.join(self.directory, class_file), 'w')
             HtmlClassWriter(fh, verbclass, self.verbnet_url).write()
         self.index.write("</table>\n")
@@ -73,27 +76,35 @@ class HtmlClassWriter(object):
         self.fh.write("<link rel=\"stylesheet\" type=\"text/css\" href=\"style.css\">\n")
         self.fh.write("</head>\n")
         self.fh.write("<body>\n")
-        self.fh.write("\n<h1>%s</h1>\n" % str(self.glverbclass.ID))
+        self.fh.write("\n<h1>VerbnetGL &mdash; %s</h1>\n" % str(self.glverbclass.ID))
         self.pp_html_verbnet_source()
         self.pp_html_roles()
-        frames_to_print = range(len(self.glverbclass.frames))
-        if frames is not None:
-            frames_to_print = frames
-        for i in frames_to_print:
-            vn_frame = self.glverbclass.verbclass.frames[i]
-            gl_frame = self.glverbclass.frames[i]
+        for gl_frame in self.glverbclass.frames:
+            vn_frame = gl_frame.vnframe
             self.fh.write("\n<table class=frame cellpadding=8 cellspacing=0 border=0>\n")
             self.pp_html_description(gl_frame)
             self.pp_html_example(gl_frame)
-            self.pp_html_predicate(vn_frame)
-            self.pp_html_subcat(gl_frame)
+            self.pp_html_syntax(gl_frame)
+            self.fh.write("<tr class=vn>\n")
+            self.fh.write("  <td valign=top>Semantics\n")
+            self.fh.write("  <td>\n")
+            self.fh.write("    <table class=inner cellspacing=0 cellpadding=0>\n")
+            self.fh.write("    <tr class=vn>\n")
+            self.pp_html_semantics(vn_frame)
+            self.fh.write("      <td width=20>&nbsp;\n")
             self.pp_html_qualia(gl_frame)
+            self.fh.write("      <td width=20>&nbsp;\n")
             self.pp_html_event(gl_frame)
+            self.fh.write("    </tr>\n")
+            self.fh.write("    </table>\n\n")
+            self.fh.write("  </td>\n\n")
+            self.fh.write("</tr>\n\n")
             self.fh.write("</table>\n\n")
 
     def pp_html_verbnet_source(self):
         if self.verbnet_url is not None:
-            url = os.path.dirname(self.verbnet_url) + os.sep + self.glverbclass.ID + '.php'
+            url = os.path.join(os.path.dirname(self.verbnet_url),
+                               self.glverbclass.ID + '.php')
             href = "<a href=%s>%s</a>" % (url, url)
             self.fh.write("\n<table class=frame cellpadding=8 cellspacing=0 border=0>\n")
             self.fh.write("<tr class=vn valign=top>\n")
@@ -112,73 +123,40 @@ class HtmlClassWriter(object):
 
     def pp_html_description(self, gl_frame, frame_number=None):
         self.fh.write("\n<tr class=description>\n")
-        frame_number = '' if frame_number is None else "Frame %s: " % frame_number
-        self.fh.write("  <td colspan=2>%s%s\n" % (frame_number, gl_frame.description))
+        self.fh.write("  <td colspan=2>%s\n" % (gl_frame.description))
         self.fh.write("</tr>\n")
 
     def pp_html_example(self, gl_frame):
         self.fh.write("\n<tr class=vn valign=top>\n")
-        self.fh.write("  <td width=180>Example\n")
+        self.fh.write("  <td width=80>Example\n")
         self.fh.write("  <td>\"%s\"\n" % gl_frame.examples[0])
         self.fh.write("</tr>\n")
 
-    def pp_html_predicate(self, vn_frame):
-        def predicate_str(pred):
-            args = ', '.join([arg[1] for arg in pred.args])
-            return "<span class=pred>%s</span>(%s)" % (pred.value, args)
+    def pp_html_syntax(self, gl_frame):
         self.fh.write("\n<tr class=vn valign=top>\n")
-        self.fh.write("  <td>Predicates\n")
-        self.fh.write("  <td>\n")
-        for pred in vn_frame.predicates:
-            self.fh.write("     %s<br/>\n" % predicate_str(pred))
-        self.fh.write("</tr>\n")
-
-    def pp_html_subcat(self, gl_frame):
-        self.fh.write("\n<tr class=vn valign=top>\n")
-        self.fh.write("  <td>Subcategorisation\n")
+        self.fh.write("  <td>Syntax\n")
         self.fh.write("  <td>\n")
         for element in gl_frame.subcat:
             self.fh.write("    %s \n" % element.html())
-        #self.fh.write("  <br/>\n")
-        #for element in gl_frame.subcat:
-        #    self.fh.write("    %s<br/>\n" % element)
         self.fh.write("</tr>\n")
+
+    def pp_html_semantics(self, vn_frame):
+        self.fh.write("      <td class=bordered valign=top>\n")
+        self.fh.write("        <div class=semheader>Verbnet Predicates</div>\n")
+        for pred in vn_frame.predicates:
+            self.fh.write("       %s<br/>\n" % pred.html())
+        self.fh.write("      </td>\n")
 
     def pp_html_qualia(self, gl_frame):
-        self.fh.write("\n<tr class=qualia valign=top>\n")
-        self.fh.write("  <td>Qualia&nbsp;structure\n")
-        self.fh.write("  <td>%s\n" % gl_frame.qualia.html())
-        self.fh.write("</tr>\n")
+        self.fh.write("      <td class=bordered valign=top>\n")
+        self.fh.write("        <div class=semheader>Qualia&nbsp;structure</div>\n")
+        for formula in gl_frame.qualia.formulas:
+            self.fh.write("        %s<br/>\n" % formula.html())
+        self.fh.write("      </td>\n")
 
     def pp_html_event(self, gl_frame):
-        if True:
-            # use new way of printing this
-            self.pp_html_event_new(gl_frame)
-        else:
-            # ... but keep the old one around for now
-            self.fh.write("\n<tr class=event valign=top>\n")
-            self.fh.write("  <td>Event structure")
-            self.fh.write("  <td>var = %s<br>\n" % gl_frame.events.var)
-            self.fh.write("      initial_state = %s<br>\n"
-                          % gl_frame.events.initial_state().html())
-            self.fh.write("      final_state = %s\n"
-                          % gl_frame.events.final_state().html())
-            self.fh.write("</tr>\n")
-
-    def pp_html_event_new(self, gl_frame):
-        self.fh.write("\n<tr class=event valign=top>\n")
-        self.fh.write("  <td>Event structure")
-        self.fh.write("  <td>%s\n" % (gl_frame.events.html()))
-        self.fh.write("</tr>\n")
-
-
-def html_var(var):
-    """Takes a variable like "x1" and turns it into "x<sub>1</sub>". Works as long
-    as the variable starts with one letter followed by some integers."""
-    if var in ('?', '-?'):
-        return var
-    prefix = ''
-    if var[0] == '-':
-        prefix = '-'
-        var = var[1:]
-    return "%s%s<sub>%s</sub>" % (prefix, var[0], var[1:])
+        self.fh.write("      <td class=bordered valign=top>\n")
+        self.fh.write("        <div class=semheader>Event structure</div>\n")
+        for formula in gl_frame.events.formulas:
+            self.fh.write("        %s<br/>\n" % (formula.html()))
+        self.fh.write("      </td>\n")
