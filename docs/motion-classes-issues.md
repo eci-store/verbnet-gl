@@ -38,8 +38,8 @@ Here we indeed have `?Theme` instead of `Theme`
 
 In waltz-51.5 there are the following two frames
 
-1. NP V NP ADJP |"He waltzed her dizzy."
-2. NP V NP PP.goal |Example	"He waltzed her to exhaustion."
+1. NP V NP ADJP &mdash; "He waltzed her dizzy."
+2. NP V NP PP.goal &mdash; "He waltzed her to exhaustion."
 
 The ADVP or PP.goal is presented as a goal of the motion.
 
