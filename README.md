@@ -16,7 +16,7 @@ The main program for this is `verbnetgl.py` which you simply run as follows:
 $ python verbnetgl.py
 ```
 
-Results are written to `html/index.html`. See the documentation string in `verbnetgp.py` for command lines options and other details.
+Results are written to `html/index.html`. See the documentation string in `verbnetgl.py` for command lines options and other details.
 
 
 ### Extracting selectional restrictions
@@ -30,3 +30,5 @@ $ python restrictions.py
 Parameters for the script are controlled by setting a couple of global variables at the top of the script, see the document string of the script for a description.
 
 The selectional restrictions code requires installation of the [TreeTagger](http://www.cis.uni-muenchen.de/~schmid/tools/TreeTagger/).
+
+The results of a recent run are stored in this repository at [docs/restrictions.txt](docs/restrictions.txt).
