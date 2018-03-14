@@ -54,21 +54,26 @@ VERBNET_VERSION = '3.3'
 VERBNET_URL = 'http://verbs.colorado.edu/verb-index/vn3.3/vn/reference.php'
 
 # Dictionary of roles and there abbreviations
-ROLES = { 'Agent': 'Ag',
-          'Co-Agent': 'CAg',
-          'Theme': 'Th',
-          'Co-Theme': 'CTh',
+ROLES = { 'Agent': 'Ag', 'Co-Agent': 'CAg',
+          'Patient': 'Pt',
+          'Co-Patient': 'CPt',
+          'Theme': 'Th', 'Co-Theme': 'CTh',
           'Initial_Location': 'InL',
           'Destination': 'Dest',
           'Trajectory': 'Traj',
           'Location': 'Loc',
           'Result': 'Res',
-          'Source': 'Src',
-          'Goal': 'Goal',
+          'Source': 'Src', 'Goal': 'Goal',
           'Asset': 'As',
           'Recipient': 'Rec',
           'Beneficiary': 'Ben',
-          'Instrument': 'Instr' }
+          'Instrument': 'Instr',
+          'Experiencer': 'Exp',
+          'Material': 'Mat', 'Product': 'Prod',
+          'Attribute': 'Attr',
+          'Stimulus': 'Stim',
+          'Path': 'Path',
+          'Topic': 'Topic' }
 
 
 class VerbnetGL(object):
@@ -390,7 +395,7 @@ class Subcat(object):
                 continue
             elif synrole.pos == "NP":
                 # use the abrreviation of the role as the variable name
-                var = ROLES.get(synrole.value)
+                var = ROLES.get(synrole.value, synrole.value)
                 self.members.append(SubcatElement(var, synrole))
 
     def __iter__(self):
@@ -434,7 +439,10 @@ class SubcatElement(object):
         def add_class(text, classname):
             return "<span class=%s>%s</span>" % (classname, text)
         if self.role is not None and self.cat in ('NP', 'PP'):
-            return "%s(%s)" % (add_class(self.role, 'role'), Var(self.var).html())
+            if self.var is not None:
+                return "%s(%s)" % (add_class(self.role, 'role'), Var(self.var).html())
+            else:
+                print "WARNING: unexpected subcat ", self
         elif self.var == 'e':
             return "%s(%s)" % (add_class('V', 'verb'), self.var)
         elif self.role is not None:
