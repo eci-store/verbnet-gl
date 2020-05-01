@@ -4,7 +4,7 @@ This file contains the classes for the form of Verbnet that has been enhanced
 with GL event and qualia structures. The classes themselves do all conversions
 necessary given a VerbClass from verbnetparser.py.
 
-To run this you first need to copy config.sample.txt into config.txt and edit it
+To run this you first need to copy config.sample.py into config.py and edit it
 if needed by changing the verbnet location. The file config.txt is needed so the
 VerbNet parser can find the VerbNet directory.
 
@@ -53,23 +53,27 @@ import utils.tests
 VERBNET_VERSION = '3.3'
 VERBNET_URL = 'http://verbs.colorado.edu/verb-index/vn3.3/vn/reference.php'
 
-# Dictionary of roles and there abbreviations
-ROLES = { 'Agent': 'Ag', 'Co-Agent': 'CAg',
+# Dictionary of roles and their abbreviations
+ROLES = { 'Agent': 'Ag',
+          'Co-Agent': 'CAg',
           'Patient': 'Pt',
           'Co-Patient': 'CPt',
-          'Theme': 'Th', 'Co-Theme': 'CTh',
+          'Theme': 'Th',
+          'Co-Theme': 'CTh',
           'Initial_Location': 'InL',
           'Destination': 'Dest',
           'Trajectory': 'Traj',
           'Location': 'Loc',
           'Result': 'Res',
-          'Source': 'Src', 'Goal': 'Goal',
+          'Source': 'Src',
+          'Goal': 'Goal',
           'Asset': 'As',
           'Recipient': 'Rec',
           'Beneficiary': 'Ben',
           'Instrument': 'Instr',
           'Experiencer': 'Exp',
-          'Material': 'Mat', 'Product': 'Prod',
+          'Material': 'Mat',
+          'Product': 'Prod',
           'Attribute': 'Attr',
           'Stimulus': 'Stim',
           'Path': 'Path',
@@ -128,7 +132,7 @@ class VerbnetGL(object):
 
     def print_class_roles(self):
         for vc in self.verb_classes:
-            print "%-30s\t%s" % (vc.ID, ' '.join([r.role_type for r in vc.roles]))
+            print("%-30s\t%s" % (vc.ID, ' '.join([r.role_type for r in vc.roles])))
 
 
 class GLVerbClass(object):
@@ -149,6 +153,9 @@ class GLVerbClass(object):
         return "<GLVerbClass \"%s\" roles=%s frames=%s subclasses=%s members=%s>" \
             % (self.ID, len(self.roles), len(self.frames),
                len(self.subclasses), len(self.members))
+
+    def __lt__(self, other):
+        return self.ID < other.ID
 
     def is_motion_class(self):
         """Return True if one of the frames is a motion frame."""
@@ -179,10 +186,10 @@ class GLVerbClass(object):
         return [GLFrame(self, frame) for frame in self.verbclass.frames]
 
     def pp(self):
-        print bold(str(self)), "\n"
+        print(bold(str(self)), "\n")
         for frame in self.frames:
             frame.pp()
-            print
+            print()
 
 
 class GLSubclass(GLVerbClass):
@@ -340,39 +347,39 @@ class GLFrame(object):
         return Role(rolename, var)
 
     def pp_predicates(self, indent=0):
-        print "%s%s" % (indent * ' ', ul('predicates'))
+        print("%s%s" % (indent * ' ', ul('predicates')))
         for p in self.vnframe.predicates:
-            print "%s   %s" % (indent * ' ', p)
+            print("%s   %s" % (indent * ' ', p))
 
     def pp_subcat(self, indent=0):
-        print "%s%s" % (indent * ' ', ul('subcat'))
+        print("%s%s" % (indent * ' ', ul('subcat')))
         for sc in self.subcat:
-            print "%s   %s" % (indent * ' ', sc)
+            print("%s   %s" % (indent * ' ', sc))
 
     def pp_qualia(self, indent=0):
-        print "%s%s" % (indent * ' ', ul('qualia-structure'))
-        print "%s   %s" % (indent * ' ', self.qualia)
+        print("%s%s" % (indent * ' ', ul('qualia-structure')))
+        print("%s   %s" % (indent * ' ', self.qualia))
 
     def pp_roles(self, indent=0):
-        print "%s%s" % (indent * ' ', ul('roles'))
+        print("%s%s" % (indent * ' ', ul('roles')))
         for role in self.class_roles:
-            print "%s   %s" % (indent * ' ', role)
+            print("%s   %s" % (indent * ' ', role))
 
     def pp_variables(self, indent=0):
-        print "%svariables = { %s }" \
+        print("%svariables = { %s }" \
             % (indent * ' ',
-               ', '.join(["%s(%s)" % (r, v) for r, v in self.role2var.items()]))
+               ', '.join(["%s(%s)" % (r, v) for r, v in list(self.role2var.items())])))
 
     def pp(self, indent=0):
         name = self.glverbclass.ID + ' -- ' + self.description
-        print "%s%s\n" % (indent * ' ', bold(name))
+        print("%s%s\n" % (indent * ' ', bold(name)))
         for example in self.examples:
-            print "   %s\"%s\"" % (indent * ' ', example)
-        print; self.pp_roles(indent+3)
-        print; self.pp_predicates(indent+3)
-        print; self.pp_subcat(indent+3)
-        print; self.pp_qualia(indent+3)
-        print; self.events.pp(indent+3)
+            print("   %s\"%s\"" % (indent * ' ', example))
+        print(); self.pp_roles(indent+3)
+        print(); self.pp_predicates(indent+3)
+        print(); self.pp_subcat(indent+3)
+        print(); self.pp_qualia(indent+3)
+        print(); self.events.pp(indent+3)
 
 
 class Subcat(object):
@@ -442,7 +449,7 @@ class SubcatElement(object):
             if self.var is not None:
                 return "%s(%s)" % (add_class(self.role, 'role'), Var(self.var).html())
             else:
-                print "WARNING: unexpected subcat ", self
+                print("WARNING: unexpected subcat ", self)
         elif self.var == 'e':
             return "%s(%s)" % (add_class('V', 'verb'), self.var)
         elif self.role is not None:
@@ -474,9 +481,9 @@ class EventStructure(object):
         self.formulas.extend(formulas)
 
     def pp(self, indent=0):
-        print "%s%s" % (indent * ' ', ul('event-structure'))
-        print "%s   var = %s" % (indent*' ', self.var)
-        print "%s   %s" % (indent*' ', self)
+        print("%s%s" % (indent * ' ', ul('event-structure')))
+        print("%s   var = %s" % (indent*' ', self.var))
+        print("%s   %s" % (indent*' ', self))
 
     def html(self):
         return '<br>\n'.join([f.html() for f in self.formulas])
@@ -555,16 +562,16 @@ class GLFactory(object):
                                  self.glframe.examples[0])
 
     def pp_cases(self, cases):
-        print "\n%s\n" % self.frame_description()
+        print("\n%s\n" % self.frame_description())
         for c in cases:
-            print '  ', '-'.join([str(r) for r in c])
+            print('  ', '-'.join([str(r) for r in c]))
 
     def debug(self, roles):
-        print "\n%s -- %s\n" % (self.glframe.glverbclass.ID,
-                                self.glframe.description)
-        self.glframe.pp_variables(3); print
+        print("\n%s -- %s\n" % (self.glframe.glverbclass.ID,
+                                self.glframe.description))
+        self.glframe.pp_variables(3); print()
         for role in roles:
-            print "   | %s" % role
+            print("   | %s" % role)
 
 
 class GLMotionFactory(GLFactory):
@@ -585,7 +592,7 @@ class GLMotionFactory(GLFactory):
     def make(self):
         case = self.__class__.determine_case(self.glframe)
         if case is None:
-            print "WARNING: no case for", self.frame_description()
+            print("WARNING: no case for", self.frame_description())
         elif case in [('Agent', 'Theme', 'Location'),
                       ('Agent', 'Location')]:
             self.harvest_location()
@@ -597,9 +604,9 @@ class GLMotionFactory(GLFactory):
                       ('Theme', 'Goal')]:
             self.harvest_obj_source_goal()
         else:
-            print "WARNING: no code to deal with this case"
-            print "     case  - %s" % (case,)
-            print "     frame - %s" % self.frame_ID()
+            print("WARNING: no code to deal with this case")
+            print("     case  - %s" % (case,))
+            print("     frame - %s" % self.frame_ID())
 
     def harvest_location(self):
         """Deals with the verb classes that have a Location, which are all cases

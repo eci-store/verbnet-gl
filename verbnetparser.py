@@ -8,15 +8,7 @@ verb frames.
 
 import os, bs4
 
-
-def get_verbnet_directory():
-    for line in open('config.txt'):
-        if line.startswith('VERBNET_PATH'):
-            return line.split('=')[1].strip()
-    exit('WARNING: could not find a value for VERBNET_PATH')
-
-
-VERBNET_PATH = get_verbnet_directory()
+from config import VERBNET_PATH
 
 
 def read_verbnet(max_count=None, file_list=None, vnclass=None):
@@ -136,7 +128,7 @@ class Frame(object):
         # if we find a missing pos
         for role in roles:
             if role.pos is None:
-                print "Warning: empty pos in %s" % role
+                print("Warning: empty pos in %s" % role)
         return roles
 
 
@@ -300,4 +292,4 @@ class Restriction(object):
 
 def psoup(soup):
     """Utility to print the soup xml on one line."""
-    print "SOUP - %s" % str(soup).replace("\n", '')
+    print("SOUP - %s" % str(soup).replace("\n", ''))

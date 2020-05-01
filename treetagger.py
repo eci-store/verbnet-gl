@@ -42,9 +42,9 @@ class TreeTagger(object):
         elif sys.platform == "darwin":
             executable = os.path.join(self.bindir, MAC_EXECUTABLE)
         else:
-            print("No binary for platform %s" % sys.platform)
+            print(("No binary for platform %s" % sys.platform))
         if not os.path.isfile(executable):
-            print("TreeTagger binary invalid: %s" % executable)
+            print(("TreeTagger binary invalid: %s" % executable))
         return executable
 
     def __del__(self):

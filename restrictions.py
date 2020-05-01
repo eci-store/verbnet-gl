@@ -60,7 +60,7 @@ def preprocess_sentences():
         tokenized = tokenize(sentence)
         tags = tag(tagger, tokenized)
         # and write the result to stdout
-        print "%s\t%s\t%s" % (sentence.strip(), tokenized.strip(), ' '.join(tags))
+        print("%s\t%s\t%s" % (sentence.strip(), tokenized.strip(), ' '.join(tags)))
 
 
 def tokenize(sentence):
@@ -96,14 +96,14 @@ class RestrictionFinder(object):
         for vc in self.vnclasses:
             self.process_class(vc)
         self.extract_restrictions()
-        print "\nNOT PARSED: %d" % self.not_parsed
-        print "PARSED: %d\n" % self.parsed
+        print("\nNOT PARSED: %d" % self.not_parsed)
+        print("PARSED: %d\n" % self.parsed)
 
             
     def process_class(self, vc):
         self.vnclass = vc
         #print vc
-        if VERBOSE: print vc
+        if VERBOSE: print(vc)
         for frame in vc.frames:
             self.process_frame(frame)
 
@@ -111,17 +111,17 @@ class RestrictionFinder(object):
         self.vnframe = frame
         example_sentence = frame.examples[0].strip()
         if VERBOSE:
-            print
-            print frame.description
-            print example_sentence
+            print()
+            print(frame.description)
+            print(example_sentence)
             for srole in frame.syntax:
-                print "  ", srole
+                print("  ", srole)
         self.align(example_sentence, frame.syntax)
 
     def align(self, sentence, syntactic_roles):
         lexes = self.tag_sentence(sentence)
         if VERBOSE:
-            print
+            print()
             print_lexes(lexes, 0, len(lexes))
         idx = 0
         alligned_pairs = []
@@ -148,7 +148,7 @@ class RestrictionFinder(object):
         
     def print_pairs(self, alligned_pairs):
         for (vc, frame, role, p1, p2, lexes) in alligned_pairs:
-            print "  ", role.pos, p1, p2,
+            print("  ", role.pos, p1, p2, end=' ')
             print_lexes(lexes, 0, len(lexes))
 
     def tag_sentence(self, sentence):
@@ -159,10 +159,10 @@ class RestrictionFinder(object):
             tokens = tokens[:-1]
             tags = tags[:-1]
         if len(tokens) != len(tags):
-            print tokens
-            print tags
+            print(tokens)
+            print(tags)
             exit("WARNING - UNBALANCED LISTS")
-        lexes = zip(tokens, tags)
+        lexes = list(zip(tokens, tags))
         return lexes
 
     def consume_tokens(self, role, lexes, idx):
@@ -181,7 +181,7 @@ class RestrictionFinder(object):
         elif role.pos == "ADV":
             return slurp_ADV(lexes, idx)
         else:
-            print "WARNING: cannot slurp a", role.pos
+            print("WARNING: cannot slurp a", role.pos)
 
     def extract_restrictions(self):
         #print len(self.alligned)
@@ -198,18 +198,18 @@ class RestrictionFinder(object):
                 phrase = ' '.join([w for w,t in lexes])
                 self.restrictions.setdefault(restrictions, []).append(phrase)
             #print '  ', role.pos, role.value, restrictions, lexes
-        for key, vals in self.restrictions.items():
-            print "\n%s\n" % key
-            for (phrase, count) in Counter(vals).items():
-                print "  %2d  %s" % (count, phrase)
+        for key, vals in list(self.restrictions.items()):
+            print("\n%s\n" % key)
+            for (phrase, count) in list(Counter(vals).items()):
+                print("  %2d  %s" % (count, phrase))
 
 
 def print_lexes(lexes, idx1, idx2):
-    print ' '. join(["%s/%s" % (tok, tag) for tok, tag in lexes[idx1:idx2]])
+    print(' '. join(["%s/%s" % (tok, tag) for tok, tag in lexes[idx1:idx2]]))
 
     
 def print_roles(roles):
-    print ' '.join([role.pos for role in roles])
+    print(' '.join([role.pos for role in roles]))
     
     
 def load_lookup():
