@@ -5,30 +5,30 @@ with GL event and qualia structures. The classes themselves do all conversions
 necessary given a VerbClass from verbnetparser.py.
 
 To run this you first need to copy config.sample.py into config.py and edit it
-if needed by changing the verbnet location. The file config.txt is needed so the
+if needed by changing the verbnet location. The file config.py is needed so the
 VerbNet parser can find the VerbNet directory.
 
 Run this script in one of the following ways:
 
 $ python verbnetgl.py
 
-    Runs the main code in create_verbnet_gl() on all of VerbNet, which creates
-    VerbnetGL versios of Verbnet classes. Results are written to html/index.html.
+    Runs the main code on all of VerbNet, which creates VerbnetGL versions of
+    Verbnet classes. Results are written to html/index.html.
 
 $ python verbnetgl.py -d
 
-    Runs the main code in create_verbnet_gl() in debug mode, that is, on just
-    the first 50 verb classes. Results are written to html/index.html.
+    Runs the main code in debug mode, that is, on just the first 50 verb
+    classes. Results are written to html/index.html.
 
 $ python verbnetgl.py -f lists/motion-classes.txt
 
-    Runs the main code in create_verbnet_gl(), but now only on the classes
-    listed in lists/motion-classes.txt. Results are written to html/index.html.
+    Runs the main code, but now only on the classes listed in
+    lists/motion-classes.txt. Results are written to html/index.html.
 
 $ python verbnetgl.py -c give-13.1
 
-    Runs the main code in create_verbnet_gl(), but now only on the one class
-    given as an argument. Results are written to html/index.html.
+    Runs the main code, but now only on the one class given as an
+    argument. Results are written to html/index.html.
 
 $ python verbnetgl.py -t
 $ python verbnetgl.py -td
