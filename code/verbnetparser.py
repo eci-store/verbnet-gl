@@ -8,15 +8,7 @@ verb frames.
 
 import os, bs4
 
-
-def get_verbnet_directory():
-    for line in open('config.txt'):
-        if line.startswith('VERBNET_PATH'):
-            return line.split('=')[1].strip()
-    exit('WARNING: could not find a value for VERBNET_PATH')
-
-
-VERBNET_PATH = get_verbnet_directory()
+from config import VERBNET_PATH
 
 
 def read_verbnet(max_count=None, file_list=None, vnclass=None):
@@ -78,11 +70,11 @@ class VerbClass(object):
     def frames(self):
         """Get all frames for a verb class, seems to be shared by all members
         of the class."""
-        return [Frame(frame_soup, self.ID)
+        return [Frame(frame_soup, self, self.ID)
                 for frame_soup in self.soup.FRAMES.find_all("FRAME")]
 
     def themroles(self):
-        """Get all the thematic roles for a verb class ans their selectional
+        """Get all the thematic roles for a verb class and their selectional
         restrictions."""
         return [ThematicRole(them_soup)
                 for them_soup in self.soup.THEMROLES.find_all("THEMROLE")]
@@ -96,7 +88,7 @@ class VerbClass(object):
 class Member(object):
 
     """Represents a single member of a VerbClass, with associated name, WordNet
-    category, and PropBank grouping."""
+    category and PropBank grouping."""
 
     def __init__(self, soup):
         self.soup = soup
@@ -113,8 +105,9 @@ class Frame(object):
     """Represents a single verb frame in VerbNet, with a description, examples,
     syntax, and semantics """
 
-    def __init__(self, soup, class_ID):
+    def __init__(self, soup, vnclass, class_ID):
         self.soup = soup
+        self.vnclass = vnclass
         self.class_ID = class_ID
         self.description = self.soup.DESCRIPTION.get('primary')
         self.examples = [e.text for e in self.soup.EXAMPLES.find_all("EXAMPLE")]
@@ -130,12 +123,12 @@ class Frame(object):
     def get_syntax(self):
         syntax_elements = [c for c in self.soup.SYNTAX.children
                            if isinstance(c, bs4.element.Tag)]
-        roles = [SyntacticRole(soup) for soup in syntax_elements]
+        roles = [SyntacticRole(soup, self) for soup in syntax_elements]
         # there used to be a test for the value of pos, now just write a warning
         # if we find a missing pos
         for role in roles:
             if role.pos is None:
-                print "Warning: empty pos in %s" % role
+                print("Warning: empty pos in %s" % role)
         return roles
 
 
@@ -195,8 +188,9 @@ class SyntacticRole(object):
 
     """Represents a syntactic role assigned to a frame"""
 
-    def __init__(self, soup):
+    def __init__(self, soup, frame):
         self.soup = soup
+        self.frame = frame
         self.pos = self.soup.name
         self.value = self.soup.get('value')
         self.restrictions = None
@@ -211,6 +205,14 @@ class SyntacticRole(object):
     def __str__(self):
         return "<SyntacticRole pos=%s value=%s restrictions=%s>" \
             % (self.pos, self.value, self.restrictions)
+
+    def get_restrictions(self):
+        """Returns the restrictions for the role as defined on the thematic role
+        that the syntactic role fullfills."""
+        for themrole in self.frame.vnclass.themroles:
+            if themrole.role_type == self.value:
+                return themrole.sel_restrictions
+        return None
 
 
 class Restrictions(object):
@@ -290,4 +292,4 @@ class Restriction(object):
 
 def psoup(soup):
     """Utility to print the soup xml on one line."""
-    print "SOUP - %s" % str(soup).replace("\n", '')
+    print("SOUP - %s" % str(soup).replace("\n", ''))

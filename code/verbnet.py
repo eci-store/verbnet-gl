@@ -146,7 +146,7 @@ class VerbNet(object):
 
     def get_classes(self):
         """Return a list of all classes."""
-        return self.classes.values()
+        return list(self.classes.values())
 
     def __str__(self):
         return "<VerbNet on %d classes>" % len(self.fnames)
@@ -195,7 +195,7 @@ class VerbClass(VerbNetObject):
         return False
 
     def pp(self):
-        print self.classname
+        print(self.classname)
 
     def print_html(self, fh=None):
         if fh is None:
@@ -333,7 +333,7 @@ class PredicateStatistics(object):
                 self.predicates.setdefault(predicate.value, []).append(predicate)
 
     def _collect_statistics(self):
-        for pvalue, predicates in self.predicates.items():
+        for pvalue, predicates in list(self.predicates.items()):
             self.statistics[pvalue] = {'classes': {},
                                        'arguments': collections.Counter()}
             for pred in predicates:

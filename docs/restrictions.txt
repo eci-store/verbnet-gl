@@ -1,0 +1,572 @@
+
+(+communication)
+
+   4  the situation
+   1  U.S.
+   1  Sara
+   2  agreement
+   1  the problems
+   1  matters
+   1  the party
+   3  the news
+   1  her agreement
+   2  the news/a
+   6  the problem
+
+(+vehicle)
+
+   1  a cab
+   1  a traim
+   1  a flight
+
+(+human | +organization)
+
+   2  Lydia
+   2  They
+
+(+animate | +organization)
+
+   1  Sarah
+   1  The bank
+  18  Heather
+   3  Sparta
+   1  Russia
+  12  Sara
+   2  Athens
+   1  Mongolia
+   4  Nora
+   1  books
+   1  The populace
+   9  Ellen
+   4  You
+   1  Martha
+   3  Mary
+   1  The embezzler
+   5  Amanda
+   4  Brown
+  13  We
+  14  John
+   6  her
+   1  the U.S.
+   1  their building
+   5  His wife
+   6  The thief
+   3  The king
+   1  TransCanada
+   2  The phone
+   1  The country
+   1  wood
+  66  They
+   7  Helen
+   1  you
+   2  the community
+   7  Carmen
+   2  the baby
+  52  He
+   3  Jones
+   1  The curator
+   6  them
+   1  Zellig Harris
+   1  Michelle
+  35  Susan
+  122  I
+   2  The men
+   1  Twenty couples
+   1  The prime minister
+  12  She
+   1  Wilma
+   1  the former president
+  53  him
+   9  me
+   3  The swindler
+   1  Gwen
+   1  Sam
+   1  Winnie
+   1  My accountant
+  15  Rachel
+   1  The rules
+   4  us
+   4  two secretaries
+   1  Cathay
+   1  a toy
+   1  FMC
+   1  The US
+   2  The captain
+   1  The cook
+   2  The enemy soldiers
+   2  Kevin
+
+(+int_control | +organization)
+
+   2  Doug
+
+(+human)
+
+   1  her
+   1  the suspect
+   3  They
+
+(+nonrigid & +elongated)
+
+   1  That type
+   1  the rope
+   1  The rope
+
+(+animate | +organization | +location | -region)
+
+   1  the museum
+   1  John
+
+(+eventive)
+
+   1  a gala
+   1  a state
+   1  the engine
+
+(+body_part)
+
+   1  her hand
+   2  her eye
+   2  her finger
+   2  My heart
+   1  her neck
+   1  the baby
+
+(+biotic)
+
+   1  the pizza
+
+(+refl)
+
+   1  herself
+
+(+animal)
+
+   3  The dog
+   1  Birds
+   1  birds
+
+(-animate)
+
+   1  This remark
+   1  a gradfather
+   1  The bell
+   1  horns
+   1  jewels
+   1  the lights
+   1  The onions
+   1  Jewels
+   1  Horns
+   1  The jewel
+   1  onions
+   1  the bell
+   1  The door hinges
+
+(+solid)
+
+   4  The labels
+   1  The rod
+   1  that kind
+   1  The twigs
+   3  the window
+   2  the picture
+   1  the box
+   2  pliers
+   1  a dishcloth
+   5  the rod
+   1  Those twigs
+   2  the glass
+   1  the flaps
+   1  The crystal vases
+   1  the label
+   1  The glass
+   1  The hammer
+   1  The copper rods
+   1  the branch
+   1  This oven
+   1  The pliers
+   1  those branches
+   2  a hammer
+   2  The twig
+   1  The window
+   2  the piggy bank
+   1  the stick
+   1  the wall
+   3  the oven
+   2  the twig
+
+(+concrete | +organization)
+
+   2  the ship
+   3  him
+
+(+sound)
+
+   2  The voices
+   1  a loud cry
+   1  voices
+
+(+int_control)
+
+   1  The Romans
+   5  Smith
+   2  Brian
+   5  Nora
+   9  Paula
+   1  Barry Cryer
+   1  Cora
+   1  The builders
+   3  They
+   9  Carol
+   1  Susan
+   3  I
+   8  Bill
+   3  Claire
+   5  Amanda
+   2  Carrie
+   6  Steve
+   4  Carla
+   1  The patriots
+   2  Doug
+  11  Tony
+   4  Paul
+
+(+organization)
+
+   1  the company
+
+(+substance | +concrete | +plural)
+
+   3  water
+   2  Water
+
+(+animate | +machine)
+
+   5  Allison
+   2  The jeweler
+   2  The horse
+   4  I
+   1  The contractor
+   1  Roberto
+   3  David
+   1  The 1980s
+   4  Carla
+   2  The witch
+   1  They
+   4  Linda
+  10  Martha
+   1  Saul
+
+(+pointy)
+
+   2  the needle
+   1  The needle
+
+(+concrete & +plural)
+
+   1  The kids
+   2  the kids
+
+(-location & -region)
+
+   2  $50
+
+(+body_part | +concrete)
+
+   1  his arm
+   1  the rail
+
+(+animate | +location | -region)
+
+   1  them
+   3  Pat
+   2  the meeting
+   3  the floor
+   3  New York
+   2  London
+   1  Rome
+   2  the garden
+   1  John
+
+(+currency)
+
+   1  $100,000
+   1  $200
+   2  5000 pounds
+
+(+animate & +organization)
+
+   2  I
+   1  me
+   1  We
+   2  He
+
+(+comestible)
+
+   2  soy
+   2  peaches
+
+(+location & -region)
+
+   1  the table
+   2  the hall
+   1  here/there
+   1  the desk
+   2  the fort
+   1  the pedestal
+   1  the isle
+   3  the bowl
+   1  The hall
+   2  the cup
+   2  the mountains
+   2  the wagon
+   1  the plants
+   1  the bottle
+   2  the corner
+   3  the store
+   1  The garden
+   1  the shelf
+   2  the toast
+   1  the wall
+
+(+concrete & -animate)
+
+   1  the snow
+   1  the fingerprints
+   1  the writing
+
+(+animate)
+
+   2  The gardener
+   3  Cynthia
+   2  The dragon
+   1  The queen
+   1  Julius Caesar
+   6  Sharon
+   2  Rose
+   1  him
+   2  Maggie
+   1  Nora
+   1  Caesar
+   5  The president
+   2  Rhoda
+   1  the children
+   1  Celia
+   6  Linda
+   1  You
+   3  Frances
+   2  Lora
+   6  Mary
+   7  Paula
+   2  Kathy
+   2  Cheryl
+  12  We
+   4  Jessica
+   2  her
+   1  My family
+   1  Fred
+   1  the horse
+   2  Snow White
+   1  Megan
+   1  The pirate
+   2  Sasha
+   2  the naughty child
+   1  Sylvia
+   1  The witch
+   3  the general
+   2  Leslie
+   1  Sally
+   2  Brutus
+  15  He
+   2  The dog
+   2  The secretary
+   2  the queen
+   1  Kissinger
+   1  the audience
+  33  I
+   2  Bill
+   1  The sailor
+   5  Jackie
+   2  Tamara
+   2  the sailor
+   2  The teacher
+   1  Sheila
+   2  Claire
+   6  They
+  10  She
+   1  Maria
+   3  The inspector
+   6  Paul
+   1  Gloria
+   2  The Boston Strangler
+   3  me
+   1  His brother
+   1  Brenda
+   1  Dina
+   1  The crew
+   3  The cat
+   3  Marlene
+   1  The cook
+   4  The princess
+   4  Penny
+   3  Teresa
+   7  Jennifer
+   1  The tourists
+   1  her husband
+   1  The hygienist
+   1  Her cousin
+   3  The children
+   1  Cornelia
+   1  Dorothy
+   1  The pirates
+   2  The dealer
+   2  the baby
+   3  Sandy
+
+(+location)
+
+   1  the army
+   4  the table
+   1  Nederland
+   2  Paris
+   2  the post
+   3  the walk
+   1  Reno
+   1  Tuscon
+   1  Topeka
+   2  the corner
+   8  home
+   1  the tabletop
+   2  the counter
+
+(+elongated)
+
+   1  the river
+   1  The river
+
+(+animate | +vehicle)
+
+   1  Claire
+   1  Jill
+   1  Jack
+   1  Gordo
+   1  Martha
+   5  Amanda
+   1  Kevin
+
+(+concrete)
+
+   1  the hill
+   9  the books
+   1  the floor
+   4  the door
+   1  the bag
+   1  the sticks
+   2  Anna
+   1  the room
+   1  The Idaho
+   1  The eggs
+   1  The potatoes
+   2  The drawer
+   1  a statue
+   4  the bread
+   1  her mother
+   2  the gold
+  10  the package
+   2  The child
+   1  The employees
+   3  the thief
+   4  the potatoes
+   2  the drawer
+   3  him
+   1  potatoes
+   3  the wall
+   1  The statue
+   4  The books
+   2  the handle
+   1  the stick
+  12  the book
+   2  the fish
+   1  The explosives
+   1  Penny
+   2  the cat
+   1  the piece
+   1  France
+   1  That acorn
+   1  a notepad
+   1  the record
+   1  This wood
+   1  Judge Davis
+   2  the canal
+   1  The roses
+   3  He
+   1  the lake
+   1  That new handle
+   2  the warehouse
+   1  The grocery
+   1  the city
+   1  An oak
+   1  a flag
+   1  employees
+   4  the ring
+   1  the rink
+   1  the couch
+   5  the envelope
+   3  an oak
+   3  the window
+   2  the change
+   1  the dishes
+   1  The bill
+   1  the counch
+   2  The ball
+   1  that acorn
+   1  Deirdre
+   1  a sharp knife
+   1  acorns
+   1  the canals
+   1  a bat
+   8  the ball
+   1  a hammer
+   2  Colorado
+   2  Diana
+   1  us
+   2  a knife
+   1  the flag
+   3  the back
+   1  the recipes
+   4  the cloth
+   2  The bag
+   1  the chair
+   1  Italy
+   1  This knife
+   1  The book costs
+   1  the box
+   2  the valley
+   1  The hammer
+   3  the fly
+   1  The bread
+   1  The sugar
+   1  John
+   1  the mixture
+   1  the sauce
+   3  the naughty child
+   2  a piece
+   2  A flag
+   2  The stick
+   2  Potatoes
+   1  explosives
+   2  the child
+   1  dishes
+   2  the fence
+   3  The knife
+   1  a stick
+   1  a paddle
+
+(+animate | +refl)
+
+   1  herself
+   1  the baby
+
+(+concrete & +organization)
+
+   1  They

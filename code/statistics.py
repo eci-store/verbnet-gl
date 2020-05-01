@@ -109,9 +109,9 @@ class PredicateStatistics(object):
                         if len(member.role) > 0:
                             roles[member.role[0]] += 1
                             if "?" in member.role[0]:
-                                print ID, "?from or to"
+                                print(ID, "?from or to")
                         if len(member.sel_res) > 0:
-                            print member.sel_res, ID
+                            print(member.sel_res, ID)
                             for res in member.sel_res:
                                 selres[res] += 1
         return (roles, selres)
@@ -131,30 +131,30 @@ class PredicateStatistics(object):
 if __name__ == '__main__':
     vnp = VerbNetParser()
     vngl = [GLVerbClass(vc) for vc in vnp.verb_classes]
-    print "Total Number of classes: ", len(vngl)
+    print("Total Number of classes: ", len(vngl))
     stats = PredicateStatistics(vngl)
-    print "\nPredicates: ", stats.predicates
-    print "\nThematic Roles: ", stats.themroles
-    print "\nSyntactic Roles: ", stats.synroles
-    print "\nPOS: ", stats.POS
-    print "\nTotal number of predicates: ", sum(stats.predicates.values())
+    print("\nPredicates: ", stats.predicates)
+    print("\nThematic Roles: ", stats.themroles)
+    print("\nSyntactic Roles: ", stats.synroles)
+    print("\nPOS: ", stats.POS)
+    print("\nTotal number of predicates: ", sum(stats.predicates.values()))
     def motion_related():
-        print "\nClasses without all frames containing motion: ", stats.motion_check
-        print "\nClasses without all frames containing cause: ", stats.cause_check
-        print "\nClasses without all frames containing path_rel: ", stats.pathrel_check
-        print "\nClasses without all frames containing transfer: ", stats.transfer_check
+        print("\nClasses without all frames containing motion: ", stats.motion_check)
+        print("\nClasses without all frames containing cause: ", stats.cause_check)
+        print("\nClasses without all frames containing path_rel: ", stats.pathrel_check)
+        print("\nClasses without all frames containing transfer: ", stats.transfer_check)
         motion_classes = [vc.ID for vc in search2(vngl, "motion")]
-        print "\nAll motion classes: ", motion_classes
-        print "\nNumber of motion classes: ", len(motion_classes)
+        print("\nAll motion classes: ", motion_classes)
+        print("\nNumber of motion classes: ", len(motion_classes))
         motion_frames = stats.pred_search_by_frame(vngl, "motion")
-        print "\nAll motion frames: ", motion_frames
-        print "\nNumber of motion frames: ", len(motion_frames)
+        print("\nAll motion frames: ", motion_frames)
+        print("\nNumber of motion frames: ", len(motion_frames))
         transfer_classes = [vc.ID for vc in search2(vngl, "transfer")]
-        print "\nAll transfer classes: ", transfer_classes
-        print "\nNumber of transfer classes: ", len(transfer_classes)
+        print("\nAll transfer classes: ", transfer_classes)
+        print("\nNumber of transfer classes: ", len(transfer_classes))
         transfer_frames = stats.pred_search_by_frame(vngl, "transfer")
-        print "\nAll transfer frames: ", transfer_frames
-        print "\nNumber of transfer frames: ", len(transfer_frames)
+        print("\nAll transfer frames: ", transfer_frames)
+        print("\nNumber of transfer frames: ", len(transfer_frames))
     prep_roles, prep_selres = stats.prep_roles_and_selres(vngl)
-    print "\nPreposition Roles: ", prep_roles
-    print "\nPreposition Selres: ", prep_selres
+    print("\nPreposition Roles: ", prep_roles)
+    print("\nPreposition Selres: ", prep_selres)

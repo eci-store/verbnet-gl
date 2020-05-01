@@ -10,6 +10,8 @@ image search function in verbnetgl.py
 The main function is create_schema_to_verbnet_mappings(), which creates a bunch
 of html pages with mappings between image schema and VerbNet.
 
+TODO: this is now out-of-sync with the verbnetparser code so it gives errors
+
 """
 
 from verbnetparser import VerbNetParser
@@ -107,7 +109,7 @@ def pp_image_search_html(verbclasslist, results):
                     id_dict[ID].append((frame_num, results_type))
                 else:
                     id_dict[ID] = [(frame_num, results_type)]
-            for ID in id_dict.keys():
+            for ID in list(id_dict.keys()):
                 class_file = "imageresult-%s.html" % ID
                 INDEX.write("<tr class=body><td><a href=\"%s\">%s</a>\n" % (class_file, ID))
                 INDEX.write("  <td>")
@@ -160,11 +162,11 @@ def pp_reverse_image_bins_html(verbclasslist, frame_list, scheme_list):
         for scheme in scheme_list:
             if reverse_image_search(frame, scheme):
                 results.add(scheme.name)
-        if frozenset(results) in image_bins.keys():
+        if frozenset(results) in list(image_bins.keys()):
             image_bins[frozenset(results)].append((frame, frame_num, ID))
         else:
             image_bins[frozenset(results)] = [(frame, frame_num, ID)]
-    for bin in image_bins.keys():
+    for bin in list(image_bins.keys()):
         INDEX.write("<tr class=header><td></a>")
         if len(bin) == 0:
             INDEX.write("PP Only Frames:")
@@ -199,7 +201,7 @@ def pp_html_end(fh):
 def test_image_searches(vn_classes):
     # figure out left-of right-of
     # figure out advs of speed
-    print
+    print()
     for print_string, pp_list, sem_list in [
             ("in at on destination:", ['in', 'at', 'on'], ['Destination']),
             ("in at on location:", ['in', 'at', 'on'], ['Location']),
@@ -214,8 +216,8 @@ def test_image_searches(vn_classes):
             ("Container in inside:", ['in', 'inside'], None),
             ("Surface over on:", ['over', 'on'], None) ]:
         results = image_schema_search2(vn_classes, pp_list, sem_list)
-        print print_string
-        print [vcid for frame, vcid in results], len(results), "\n"
+        print(print_string)
+        print(([vcid for frame, vcid in results], len(results), "\n"))
 
 
 def new_image_searches(vn_classes):
