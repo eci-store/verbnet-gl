@@ -43,7 +43,7 @@ sys.path.append('/Users/marc/Desktop/tarsqi/code/ttk/git/ttk/components/preproce
 
 from tokenizer import Tokenizer
 from treetagger import TreeTagger
-import verbnetparser;
+import verbnet;
 
 TREETAGGER_DIR = "/Applications/ADDED/nlp/treetagger"
 
@@ -58,7 +58,7 @@ def preprocess_sentences():
     sentences with tokenized and tagged form to the standard output."""
     # first get all the example sentences
     sentences = []
-    for vc in verbnetparser.read_verbnet(max_count=COUNT):
+    for vc in verbnet.VerbNet(max_count=COUNT):
         for frame in vc.frames:
             sentences.append(frame.examples[0])
     # then run the tagger over them
@@ -285,6 +285,6 @@ if __name__ == '__main__':
     if PREPROCESS:
         preprocess_sentences()
 
-    verb_classes = verbnetparser.read_verbnet(max_count=COUNT)
+    verb_classes = verbnet.VerbNet(max_count=COUNT)
     rf = RestrictionFinder(verb_classes)
     rf.process()

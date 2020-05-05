@@ -2,11 +2,11 @@
 
 This file contains the classes for the form of Verbnet that has been enhanced
 with GL event and qualia structures. The classes themselves do all conversions
-necessary given a VerbClass from verbnetparser.py.
+necessary given a VerbClass from verbnet.py.
 
 To run this you first need to copy config.sample.py into config.py and edit it
 if needed by changing the verbnet location. The file config.py is needed so the
-VerbNet parser can find the VerbNet directory.
+verbnet module can find the VerbNet directory.
 
 Run this script in one of the following ways:
 
@@ -37,7 +37,7 @@ The code here is designed to run on Verbnet 3.3.
 
 import os, sys, getopt
 
-from verbnetparser import VerbNet
+from verbnet import VerbNet
 from utils.ansi import BOLD, GREY, END
 from utils.writer import HtmlWriter
 from utils.formula import Pred, At, Have, Holds, Not, Var
@@ -232,20 +232,17 @@ class GLFrame(object):
 
     # TODO: lots of redundancies here since so many elements are copied from the
     # frame; it might be a bit easier to understand if we keep them just on the
-    # verbnetparser.Frame instance and then put functionality that is now here
-    # on that instance, for example self.frame.is_motion_frame() to it; would
-    # also really like to rename verbnetparser.py into verbnet.py (but that name
-    # is taken by code that may be legacy, look into taking funcitonality from
-    # the old verbnet.py.
+    # verbnet.Frame instance and then put functionality that is now here on that
+    # instance, for example self.frame.is_motion_frame()
 
     def __init__(self, glverbclass, frame):
         self.glverbclass = glverbclass          # instance of GLVerbClass
-        self.vnframe = frame                    # instance of verbnetparser.Frame
-        self.class_roles = glverbclass.roles    # list of verbnetparser.ThematicRoles
+        self.vnframe = frame                    # instance of verbnet.Frame
+        self.class_roles = glverbclass.roles    # list of verbnet.ThematicRoles
         self.description = frame.description    # unicode string, primary description
         self.examples = frame.examples          # list of unicode strings
-        self.predicates = frame.predicates      # list of verbnetparser.Predicate
-        self.syntax = frame.syntax              # list of verbnetparser.SyntacticRole
+        self.predicates = frame.predicates      # list of verbnet.Predicate
+        self.syntax = frame.syntax              # list of verbnet.SyntacticRole
         self.subcat = Subcat(self)
         self.qualia = Qualia(self)
         self.events = EventStructure(self)

@@ -5,7 +5,7 @@ Code to manipulate VerbNet classes and to extract information from them. There a
 1. Expanding VerbNet classes with GL qualia and event structure.
 2. Extracting selectional restrictions.
 
-To run either of these you first need to get a version of VerbNet, this code was developed for version 3.3 so that's the version you should get. Then copy the file `config.sample.txt` to `config.txt` and edit the value of VERBNET_PATH to set the VerbNet directory.
+To run either of these you first need to get a version of VerbNet, this code was developed for version 3.3 so that's the version you should get. Then copy the file `config.sample.py` to `config.py` and edit the value of VERBNET_PATH to set the VerbNet directory.
 
 
 ### Expanding VerbNet classes
@@ -32,3 +32,6 @@ Parameters for the script are controlled by setting a couple of global variables
 The selectional restrictions code requires installation of the [TreeTagger](http://www.cis.uni-muenchen.de/~schmid/tools/TreeTagger/).
 
 The results of a recent run are stored in this repository at [docs/restrictions.txt](docs/restrictions.txt).
+
+*NOTE: this functionality is broken at the moment.*
+
