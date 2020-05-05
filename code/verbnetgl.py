@@ -25,11 +25,6 @@ $ python verbnetgl.py -f lists/motion-classes.txt
     Runs the main code, but now only on the classes listed in
     lists/motion-classes.txt. Results are written to html/index.html.
 
-$ python verbnetgl.py -c give-13.1
-
-    Runs the main code, but now only on the one class given as an
-    argument. Results are written to html/index.html.
-
 $ python verbnetgl.py -t
 $ python verbnetgl.py -td
 
@@ -42,7 +37,7 @@ The code here is designed to run on Verbnet 3.3.
 
 import os, sys, getopt
 
-from verbnetparser import read_verbnet
+from verbnetparser import VerbNet
 from utils.ansi import BOLD, GREY, END
 from utils.writer import HtmlWriter
 from utils.formula import Pred, At, Have, Holds, Not, Var
@@ -84,18 +79,16 @@ class VerbnetGL(object):
 
     """Class for enriching Verbnet with GL qualia and event structure."""
 
-    def __init__(self, debug_mode, filelist, vnclass):
+    def __init__(self, debug_mode, filelist):
         """First read Verbnet, then transform all Verbnet classes into classes
         enriched with GL notions."""
         if debug_mode:
-            verb_classes = read_verbnet(max_count=50)
+            self.vn = VerbNet(limit=50)
         elif filelist is not None:
-            verb_classes = read_verbnet(file_list=filelist)
-        elif vnclass is not None:
-            verb_classes = read_verbnet(vnclass=vnclass)
+            self.vn = VerbNet(file_list=filelist)
         else:
-            verb_classes = read_verbnet()
-        self.verb_classes = [GLVerbClass(vc) for vc in verb_classes]
+            self.vn = VerbNet()
+        self.verb_classes = [GLVerbClass(vc) for vc in self.vn.classes]
 
     def __str__(self):
         return "<VerbnetGL classes=%s>" % len(self.verb_classes)
@@ -140,10 +133,10 @@ class GLVerbClass(object):
     """VerbClass analogue, with an update mostly to frames"""
 
     def __init__(self, verbclass):
-        self.verbclass = verbclass
         self.ID = verbclass.ID
+        self.verbclass = verbclass
         self.members = verbclass.members
-        self.names = verbclass.names
+        self.names = verbclass.member_names
         self.roles = verbclass.themroles
         self.frames = self.frames()
         self.subclasses = [GLSubclass(sub, self.roles)
@@ -207,7 +200,7 @@ class GLSubclass(GLVerbClass):
         self.verbclass = verbclass
         self.ID = verbclass.ID
         self.members = verbclass.members
-        self.names = verbclass.names
+        self.names = verbclass.member_names
         self.parent_roles = parent_roles
         self.subclass_only_roles = verbclass.themroles
         self.roles = self.themroles()
@@ -236,6 +229,14 @@ class GLFrame(object):
     variables in the subcat to those in the event structure. Some parts of the
     GLFrame are copied straight from the Frame it is created from, others are
     adjusted somewhat (subcat) or built from scratch (qualia, events)."""
+
+    # TODO: lots of redundancies here since so many elements are copied from the
+    # frame; it might be a bit easier to understand if we keep them just on the
+    # verbnetparser.Frame instance and then put functionality that is now here
+    # on that instance, for example self.frame.is_motion_frame() to it; would
+    # also really like to rename verbnetparser.py into verbnet.py (but that name
+    # is taken by code that may be legacy, look into taking funcitonality from
+    # the old verbnet.py.
 
     def __init__(self, glverbclass, frame):
         self.glverbclass = glverbclass          # instance of GLVerbClass
@@ -740,7 +741,6 @@ class Opposition(object):
 def read_options():
     debug_mode = False
     filelist = None
-    vnclass = None
     run_tests = False
     opts, arg = getopt.getopt(sys.argv[1:], 'dtf:c:', [])
     for opt, arg in opts:
@@ -750,9 +750,7 @@ def read_options():
             debug_mode = True
         if opt == '-f':
             filelist = arg
-        if opt == '-c':
-            vnclass = arg
-    return debug_mode, filelist, vnclass, run_tests
+    return debug_mode, filelist, run_tests
 
 
 def bold(text):
@@ -769,8 +767,8 @@ def ul(text):
 
 if __name__ == '__main__':
 
-    debug_mode, filelist, vnclass, run_tests = read_options()
-    vngl = VerbnetGL(debug_mode, filelist, vnclass)
+    debug_mode, filelist, run_tests = read_options()
+    vngl = VerbnetGL(debug_mode, filelist)
 
     if run_tests:
         vngl.test()

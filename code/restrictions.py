@@ -27,13 +27,20 @@ all verb classes set this to a sufficiently large number like 555.
 The TREETAGGER_DIR variable needs to be set to reflect the location of the
 TreeTagger.
 
-The VerbNet location should be specified in confix.txt.
+The VerbNet location should be specified in config.py.
 
 """
 
+# TODO: update to spaCy (see https://github.com/eci-store/verbnet-gl/issues/5)
+# TODO: use spaCy also for the tokenization since the TTK tokenizer is Python2
+# TODO: there are some nasty hard-wired directories here
+
 
 from collections import Counter
-import path
+
+sys.path.append('/Users/marc/Documents/git/tarsqi/ttk/components/preprocessing')
+sys.path.append('/Users/marc/Desktop/tarsqi/code/ttk/git/ttk/components/preprocessing/')
+
 from tokenizer import Tokenizer
 from treetagger import TreeTagger
 import verbnetparser;
@@ -236,6 +243,7 @@ def slurp_NP(lexes, idx):
                   'PP$ NN', 'NP NP',
                   'PP$ VVG', # relies on [his helping]
                   'NN', 'NNS', 'PP', 'NP'])
+
 
 def slurp_VERB(lexes, idx):
     return slurp(lexes, idx,

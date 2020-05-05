@@ -1,43 +1,44 @@
-"""
+"""verbnet.py
 
 This module contains the VerbNet class which interfaces to the contents of
 VerbNet. In addition it has a couple of classes that are wrappers around a
-couple of VerbNet elements, these classes include VerbClass, Frame, Predicate
-and Role. Finally, PredicateStatistics is a class that generates statistics for
-predicates.
+couple of VerbNet elements, these classes include VerbClass, Frame, Predicate,
+Argument and Role. Finally, PredicateStatistics is a class that generates
+statistics for predicates.
 
 You can open a VerbNet instance using a list of XML files with verb classes:
 
 >>> fnames = ('data/slide-11.2.xml', 'data/tell-37.2.xml')
 >>> vn = VerbNet(fnames=fnames)
->>> print vn
+>>> print(vn)
 <VerbNet on 2 classes>
 
 Alternatively you can open an instance on all XML files in a directory:
 
 >>> vn = VerbNet(directory='data')
->>> print vn
-<VerbNet on 2 classes>
+>>> print(vn)
+<VerbNet on 3 classes>
 
 You can get all classes:
 
 >>> for cl in sorted(vn.get_classes()):
-...      print cl
+...      print(cl)
 <VerbClass slide-11.2>
+<VerbClass swat-18.2>
 <VerbClass tell-37.2>
 
 Or just look up one class using its full name including the class version:
 
->>> print vn.get_class('slide-11.2')
+>>> print(vn['slide-11.2'])
 <VerbClass slide-11.2>
 
 Frames can be accessed easily:
 
->>> for frame in  vn.get_class('slide-11.2').frames[:3]:
-...     print frame
-<Frame slide-11.2 'NP V'>
-<Frame slide-11.2 'NP V PP.initial_location'>
-<Frame slide-11.2 'NP V PP.destination'>
+>>> for frame in  vn['slide-11.2'].frames[:3]:
+...     print(frame)
+<Frame slide-11.2  0.1 'NP V'>
+<Frame slide-11.2  0.1 'NP V PP.initial_location'>
+<Frame slide-11.2  0.1 'NP V PP.destination'>
 
 The PredicateStatistics class produces some html files with statistics:
 
@@ -48,11 +49,18 @@ The PredicateStatistics class produces some html files with statistics:
 In the case above, the results are written to two files and the statistics are
 limited to classes that contain a motion predicate.
 
+NOTE. This module is separate from all other modules in this directory. It still
+may have some value, but its role has been usurped by the verbnetparser and the
+verbnetgl modules.
+
 """
 
 
-import os, sys, glob, collections, doctest
-from xml.dom.minidom import parse, Node
+import os
+import sys
+import glob
+import collections
+from xml.dom import minidom
 
 
 # This is a hard-wired link to the online version at colorado of 3.2.4
@@ -124,7 +132,14 @@ class VerbNet(object):
 
     """Object that contains all VerbNet classes or a subset of those classes,
     taken from a directory with xml files or a list of filenames. Contains a
-    dictionary of VerbClasses indexed on class name."""
+    dictionary of VerbClasses indexed on class name.
+
+    directory  -  directory with verbnet files
+    fnames     -  list of files to use, often taken from the directory variable
+    url        -  UR of the online verbnet version at verbs.colorado.edu
+    classes    -  dictionary of VerbClass instances for each VN file
+
+    """
 
     def __init__(self, fnames=None, directory=None, url=VERBNET_URL):
         self.directory = directory
@@ -139,25 +154,24 @@ class VerbNet(object):
             vc = VerbClass(fname)
             self.classes[vc.classname] = vc
 
-    def get_class(self, classname):
-        """Return a VerbClass instance where self.classname is classname, return
-        None if there is no such class."""
+    def __str__(self):
+        return "<VerbNet on %d classes>" % len(self.fnames)
+
+    def __getitem__(self, classname):
+        """Return None or the VerbClass instance for classname."""
         return self.classes.get(classname)
 
     def get_classes(self):
         """Return a list of all classes."""
         return list(self.classes.values())
 
-    def __str__(self):
-        return "<VerbNet on %d classes>" % len(self.fnames)
-
 
 class VerbNetObject(object):
 
-    """VerbNetObject instances are wrappers around DOM elements. Subclasses all have
-    a node instance variable that contains the DOM Element."""
+    """Abstract class. Instances of subclasses are all wrappers around DOM elements
+    and they all have a node instance variable that contains the DOM Element."""
 
-    def get_elements(self, tagname):
+    def get(self, tagname):
         """Return all elements from the DOM node that match tagname."""
         return get_elements(self.node, tagname)
 
@@ -166,15 +180,15 @@ class VerbClass(VerbNetObject):
 
     """A VerbClass object is generated from an xml file, the class name is taken
     from the file name and the node object is the DOM object for the file. in
-    addition, there is a list of roles and a list of frames, implemented as ROle
+    addition, there is a list of roles and a list of frames, implemented as Role
     objects and Frame objects respectively."""
 
     def __init__(self, fname):
         self.fname = fname
         self.classname = os.path.basename(fname)[:-4]
-        self.node = parse(open(fname))
-        self.roles = [Role(role) for role in self.get_elements('THEMROLE')]
-        self.frames = [Frame(self, frame) for frame in self.get_elements('FRAME')]
+        self.node = minidom.parse(open(fname))
+        self.roles = [Role(role) for role in self.get('THEMROLE')]
+        self.frames = [Frame(self, frame) for frame in self.get('FRAME')]
 
     def __str__(self):
         return "<VerbClass %s>" % self.classname
@@ -182,15 +196,18 @@ class VerbClass(VerbNetObject):
     def __cmp__(self, other):
         return cmp(self.classname, other.classname)
 
+    def __lt__(self, other):
+        return self.classname < other.classname
+
     def predicates(self):
-        """Return DOM nodes of predicates in all the frames of the verb class."""
-        return get_elements(self.node, 'PRED')
+        """Return Predicate instances for all the frames of the verb class."""
+        return [Predicate(n) for n in get_elements(self.node, 'PRED')]
 
     def contains_predicate(self, predname):
         """Return True if one of the predicates used in frames of the verb class
         is equal to predname."""
         for p in self.predicates():
-            if get_value(p) == predname:
+            if p.value == predname:
                 return True
         return False
 
@@ -213,62 +230,93 @@ class VerbClass(VerbNetObject):
 
 class Role(VerbNetObject):
 
+    """This is created from a THEMROLE element. It has a rolename instance variable
+    which stores the type attribute (Agent, Theme and so forth). The selectional
+    restriction live in a subelement SELRESTR on the DOM node element."""
+
+    # TODO: perhaps create restrictions instance variable
+
     def __init__(self, role_node):
         self.node = role_node
+        self.rolename = self.node.getAttribute('type')
+
+    def __str__(self):
+        return "<%s %s>" % (self.node.tagName, self.rolename)
 
 
 class Frame(VerbNetObject):
 
+    """Implements one frame element from a VerbClass. Frame elements are mostly
+    defined by their number and description, but there are cases where we need
+    the secondary description to get full uniquencess, we are ignoring it here
+    though.
+
+    vc           -  instance of VerbClass
+    node         -  the full DOM element
+    number       -  description number of the frame
+    description  -  primary description, strings like "NP V PP.initial_location"
+    example      -  example sentence
+    syntax       -  SYNTAX DOM element
+    semantics    -  SEMANTICS DOM element
+
+    """
+
     def __init__(self, verb_class, frame_node):
         self.vc = verb_class
         self.node = frame_node
-        description_nodes = self.get_elements('DESCRIPTION')
-        example_nodes = self.get_elements('EXAMPLE')
-        self.description = description_nodes[0].getAttribute('primary')
-        self.example = example_nodes[0].firstChild.data
-        self.syntax = self.get_elements('SYNTAX')[0]
-        self.semantics = self.get_elements('SEMANTICS')[0]
+        description = self.get('DESCRIPTION')[0]
+        self.number = description.getAttribute('descriptionNumber')
+        self.description = description.getAttribute('primary')
+        self.example = self.get('EXAMPLE')[0].firstChild.data
+        self.syntax = self.get('SYNTAX')[0]
+        self.semantics = self.get('SEMANTICS')[0]
 
     def __str__(self):
-        return "<Frame %s '%s'>" % (self.vc.classname, self.description)
+        return "<Frame %s  %s '%s'>" \
+            % (self.vc.classname, self.number, self.description)
 
     def predicates(self):
-        return [Predicate(pred, self.vc) for pred in get_elements(self.semantics, 'PRED')]
+        """Returns a list of Predicate instances for all the predicates in the
+        semantics of the frame."""
+        return [Predicate(pred) for pred in get_elements(self.semantics, 'PRED')]
 
     def syntax_roles(self):
-        """Return a set with all roles expressed in the syntax, these are in the value
-        attribute of elements like NP."""
+        """Return a set with all roles expressed in the syntax, these are in the
+        value attribute of elements like NP."""
+        # Example return value: {'Agent', 'Theme'}.
         roles = set()
         for child in self.syntax.childNodes:
-            if child.nodeType == Node.ELEMENT_NODE:
+            if child.nodeType == minidom.Node.ELEMENT_NODE:
                 role = get_value(child)
                 if is_role(role):
                     roles.add(get_value(child))
         return roles
 
     def semantics_roles(self):
-        """Return a set with all roles expressed in the semantics, these are in the value
-        attribute of ARG elemengts with type=ThemRole."""
+        """Return a set with all roles expressed in the semantics, these are in
+        the value attribute of ARG elemengts with type=ThemRole. These roles are
+        often the same as those returned by syntax_roles(), but not always."""
+        # Example return value: {'Recipient', 'Agent', '?Topic'}
         roles = set()
         for pred in self.predicates():
             for arg in pred.args:
-                t = get_type(arg)
-                v = get_value(arg)
+                t = arg.arg_type
+                v = arg.arg_value
                 if t == 'ThemRole' and is_role(v):
-                    role = remove_role_suffix(get_value(arg))
+                    role = remove_role_suffix(v)
                     roles.add(role)
         return roles
 
-    def syntax_string(self):
+    def _syntax_html_string(self):
         elements = []
         for child in self.syntax.childNodes:
-            if child.nodeType == Node.ELEMENT_NODE:
+            if child.nodeType == minidom.Node.ELEMENT_NODE:
                 tag = child.tagName
                 role = get_value(child)
                 elements.append("%s-%s" % (tag, spanned(role, 'role')) if role else tag)
         return ' '.join(elements)
 
-    def semantics_string(self):
+    def _semantics_html_string(self):
         return ' &amp; '.join([pred.as_html_string() for pred in self.predicates()])
 
     def print_html(self, description=True, fh=None):
@@ -278,42 +326,63 @@ class Frame(VerbNetObject):
             fh.write("<p>%s</p>\n\n" % self.description)
         fh.write("<table class=synsem>\n")
         fh.write("  <tr><td class=example>%s</td></tr>\n" % self.example)
-        fh.write("  <tr><td>SYN: %s</td></tr>\n" % self.syntax_string())
-        fh.write("  <tr><td>SEM: %s</td></tr>\n" % self.semantics_string())
+        fh.write("  <tr><td>SYN: %s</td></tr>\n" % self._syntax_html_string())
+        fh.write("  <tr><td>SEM: %s</td></tr>\n" % self._semantics_html_string())
         fh.write("</table>\n")
 
 
 class Predicate(VerbNetObject):
 
-    def __init__(self, pred_node, verbnetclass):
-        self.vc = verbnetclass
+    """Implements a predicate from the semantics. Each predicate has a value (which
+    is possibly negated) and a list of arguments.
+
+    node      -  DOM node
+    value     -  name of the predicate ("motion", "direction", "cause" etcetera)
+    negated   -  boolean to indicate negation of value
+    args      -  list of Argument instances, one for each ARG element
+
+    """
+
+    def __init__(self, pred_node):
         self.node = pred_node
         self.value = get_value(pred_node)
-        self.boolean = None
-        self.args = get_elements(pred_node, 'ARG')
-        self.argtypes = [(get_type(arg), get_value(arg)) for arg in self.args]
-        self._init_bool()
-
-    def _init_bool(self):
-        # bool="!" is rather common and indicates not(self.value)
-        boolean = get_attr(self.node, 'bool')
-        if boolean:
-            self.boolean = boolean
+        self.negated = False
+        if get_attr(self.node, 'bool') == '!':
+            # bool="!" as a property on PRED indicates not(self.value)
+            self.negated = True
+        self.args = [Argument(arg, self) for arg in get_elements(pred_node, 'ARG')]
 
     def __str__(self):
-        return "<Predicate %s>" % self.value
+        negated = '!' if self.negated else ''
+        return "<Predicate %s%s>" % (negated, self.value)
+
+    def argtypes(self):
+        return [(a.arg_type, a.arg_value) for a in self.args]
 
     def as_html_string(self):
-        args = ["%s" % spanned(at[1], 'role') for at in self.argtypes]
+        args = ["%s" % spanned(at[1], 'role') for at in self.argtypes()]
         pred = "<span class=pred>%s</span>(%s)" % (self.value, ', '.join(args))
-        if self.boolean == '!':
+        if self.negated:
             pred = "<span class=pred>not</span>(%s)" % pred
         return pred
 
 
+class Argument(VerbNetObject):
+
+    """Implements an argument, which has a type and a value."""
+
+    def __init__(self, arg_node, predicate):
+        self.predicate = predicate
+        self.arg_type = get_type(arg_node)
+        self.arg_value = get_value(arg_node)
+
+    def __str__(self):
+        return "<Argument type=%s value=%s>" % (self.arg_type, self.arg_value)
+
+
 class PredicateStatistics(object):
 
-    """Contains statistics on predicates in a set of VerbNet classes."""
+    """Create statistics on predicates in a set of VerbNet classes."""
 
     def __init__(self, vn, pred=None):
         self.vnclasses = vn.get_classes()
@@ -328,8 +397,7 @@ class PredicateStatistics(object):
 
     def _collect_predicates(self):
         for vc in self.vnclasses:
-            for pred in vc.predicates():
-                predicate = Predicate(pred, vc)
+            for predicate in vc.predicates():
                 self.predicates.setdefault(predicate.value, []).append(predicate)
 
     def _collect_statistics(self):
@@ -338,7 +406,7 @@ class PredicateStatistics(object):
                                        'arguments': collections.Counter()}
             for pred in predicates:
                 self.statistics[pvalue]['classes'][pred.vc.classname] = True
-                self.statistics[pvalue]['arguments'].update(pred.argtypes)
+                self.statistics[pvalue]['arguments'].update(pred.argtypes())
 
     def _collect_missing_links(self):
         for vnclass in self.vnclasses:
@@ -350,9 +418,11 @@ class PredicateStatistics(object):
                     # the ? indicates that the role does not need to be expressed in
                     # the syntax
                     if not role.startswith('?'):
-                        self.missing_links.setdefault(classname, []).append(['syntax', role, frame])
+                        lst = ['syntax', role, frame]
+                        self.missing_links.setdefault(classname, []).append(lst)
                 for role in syn_roles.difference(sem_roles):
-                    self.missing_links.setdefault(classname, []).append(['semantics', role, frame])
+                    lst = ['semantics', role, frame]
+                    self.missing_links.setdefault(classname, []).append(lst)
 
     def print_missing_links(self, fname=None):
         fh = sys.stdout if fname is None else open(fname, 'w')
@@ -398,3 +468,16 @@ if __name__ == '__main__':
 
     import doctest
     doctest.testmod()
+
+    if False:
+        vn = VerbNet(directory='data')
+        slide = vn.classes['slide-11.2']
+        slide = vn.classes['swat-18.2']
+        for f in slide.frames:
+            print(f)
+            f.predicates()
+            for p in f.predicates():
+                print(p.node.toxml())
+        stats = PredicateStatistics(vn, pred='motion')
+        stats.print_missing_links('out-missing-roles.html')
+        stats.print_predicates('out-predicates.txt')

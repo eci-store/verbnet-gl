@@ -1,88 +1,80 @@
 """verbnetparser.py
 
 This program takes in VerbNet XML files and creates several classes for easy
-manipulation of the data, for eventual inclusion of GL features to individual
-verb frames.
+manipulation of the data.
 
 """
 
-import os, bs4
+import os
+import bs4
 
 from config import VERBNET_PATH
 
 
-def read_verbnet(max_count=None, file_list=None, vnclass=None):
-    """Parse verbnet files and return a list of VerbClasses. Read all the verbnet
-    files, but just take the first max_count files if max_count is used, or read
-    filenames from a file if file_list is used."""
-    fnames = [f for f in os.listdir(VERBNET_PATH) if f.endswith(".xml")]
-    if max_count is not None:
-        fnames = fnames[:max_count]
-    if file_list is not None:
-        fnames = ["%s.xml" % f for f in open(file_list).read().split()]
-    if vnclass is not None:
-        fnames = ["%s.xml" % vnclass]
-    filenames = [os.path.join(VERBNET_PATH, fname) for fname in fnames]
-    soups = [bs4.BeautifulSoup(open(fname), "lxml-xml") for fname in filenames]
-    return [VerbClass(fname, s) for fname, s in zip(filenames, soups)]
+class VerbNet(object):
+
+    def __init__(self, limit=None, file_list=None):
+        """Parse verbnet files and create instances of VerbClass. Read all verbnet
+        files, but restrict the number of files to read if limit is not None, or
+        read filenames from a file if file_list is not None."""
+        if file_list is None:
+            fnames = [f for f in os.listdir(VERBNET_PATH) if f.endswith(".xml")]
+            if limit is not None:
+                fnames = fnames[:limit]
+        else:
+            fnames = ["%s.xml" % f.strip() for f in open(file_list).read().split()]
+        fnames = [os.path.join(VERBNET_PATH, fname) for fname in fnames]
+        self.classes = [VerbClass(fname) for fname in fnames]
+        self.classes_idx = { cls.ID: cls for cls in self.classes }
 
 
 class VerbClass(object):
 
-    """Represents a single class of verbs in VerbNet (all verbs from the same
-    XML file)."""
+    """Represents a verb class or subclass from VerbNet. This could be created from
+    a Verbnet XML file in which case there may be a list of subclasses included or
+    it could represent a subclass from one of the files."""
 
-    # TODO: Check if nested subclasses have issues
-
-    def __init__(self, fname, soup):
+    def __init__(self, fname, soup=None):
+        """Initialize a VerbClass from either a Verbnet XML file or a soup object that
+        represents a subclass."""
         self.fname = fname
         self.soup = soup
-        vnclass = self.soup.VNCLASS
-        if vnclass is not None:
-            # see if you have a VNCLASS tag and get the ID from there
-            self.ID = vnclass.get("ID")
-        else:
-            # else self.soup is a VNSUBCLASS tag and get the ID from there
-            self.ID = self.soup.get("ID")
-        self.members = self.members()
-        self.frames = self.frames()
-        self.names = [mem.name for mem in self.members]
-        self.themroles = self.themroles()
-        self.subclasses = self.subclass()
+        if soup is None:
+            self.soup = bs4.BeautifulSoup(open(fname), "lxml-xml").VNCLASS
+        self.ID = self.soup.get("ID")
+        self.name = self.soup.name
+        self._initialize_members()
+        self._initialize_frames()
+        self._initialize_thematic_roles()
+        self._initialize_subclasses()
 
     def __str__(self):
         return "<VerbClass \"%s\" roles=%s frames=%s subclasses=%s members=%s>" \
             % (self.ID, len(self.themroles), len(self.frames),
                len(self.subclasses), len(self.members))
 
-    def __repr__(self):
-        return str(self.ID) + "\n" + str([mem.__repr__() for mem in self.members]) \
-               + "\nThemRoles: " + str(self.themroles) \
-               + "\nNames: " + str(self.names) \
-               + "\nFrames: " + str(self.frames) \
-               + "\nSubclasses: " + str(self.subclasses)
-
-    def members(self):
+    def _initialize_members(self):
         """Get all members of a verb class"""
-        return [Member(mem_soup)
-                for mem_soup in self.soup.MEMBERS.find_all("MEMBER")]
+        self.members = [Member(mem_soup)
+                        for mem_soup in self.soup.MEMBERS.find_all("MEMBER")]
+        self.member_names = [mem.name for mem in self.members]
 
-    def frames(self):
+    def _initialize_frames(self):
         """Get all frames for a verb class, seems to be shared by all members
         of the class."""
-        return [Frame(frame_soup, self, self.ID)
-                for frame_soup in self.soup.FRAMES.find_all("FRAME")]
+        self.frames = [Frame(frame_soup, self, self.ID)
+                       for frame_soup in self.soup.FRAMES.find_all("FRAME")]
 
-    def themroles(self):
+    def _initialize_thematic_roles(self):
         """Get all the thematic roles for a verb class and their selectional
         restrictions."""
-        return [ThematicRole(them_soup)
-                for them_soup in self.soup.THEMROLES.find_all("THEMROLE")]
+        self.themroles = [ThematicRole(them_soup)
+                          for them_soup in self.soup.THEMROLES.find_all("THEMROLE")]
 
-    def subclass(self):
+    def _initialize_subclasses(self):
         """Create a VerbClass instance for every subclass listed."""
-        return [VerbClass(self.fname, sub_soup) for sub_soup
-                in self.soup.SUBCLASSES.find_all("VNSUBCLASS", recursive=False)]
+        subs = self.soup.SUBCLASSES.find_all("VNSUBCLASS", recursive=False)
+        self.subclasses = [VerbClass(self.fname, soup=sub) for sub in subs]
 
 
 class Member(object):
@@ -96,7 +88,7 @@ class Member(object):
         self.wn = self.soup.get('wn')
         self.grouping = self.soup.get('grouping')
 
-    def __repr__(self):
+    def __str__(self):
         return "<Member %s %s %s>" % (self.name, self.wn, self.grouping)
 
 
@@ -113,12 +105,6 @@ class Frame(object):
         self.examples = [e.text for e in self.soup.EXAMPLES.find_all("EXAMPLE")]
         self.syntax = self.get_syntax()
         self.predicates = [Predicate(p) for p in self.soup.SEMANTICS.find_all("PRED")]
-
-    def __repr__(self):
-        return "\nDescription: " + str(self.description) + \
-               "\nExamples: " + str(self.examples) + \
-               "\nSyntax: " + str(self.syntax) + \
-               "\nPredicates: " + str(self.predicates) + "\n"
 
     def get_syntax(self):
         syntax_elements = [c for c in self.soup.SYNTAX.children
@@ -150,7 +136,8 @@ class ThematicRole(object):
             return "%s / %s" % (self.role_type, self.sel_restrictions)
 
     def html(self):
-        def role(text): return "<span class=role>%s</span>" % text
+        def role(text):
+            return "<span class=role>%s</span>" % text
         if self.sel_restrictions.is_empty():
             return role(self.role_type)
         else:
@@ -168,15 +155,12 @@ class Predicate(object):
         self.args = [(arg.get('type'), arg.get('value')) for arg in args]
 
     def __str__(self):
-        return "%s(%s)" % (self.value, ', '.join([at[1] for at in self.args]))
-
-    def __repr__(self):
-        return "Value: " + str(self.value) + " -- " + str(self.args)
+        return "%s(%s)" % (self.value, ', '.join([a[1] for a in self.args]))
 
     def find_arguments(self, arg):
-        """Return all arguments in self.args where arg matches one of the argument's
-        elements.  Note that an argument is a pair of an argument type and an
-        argument value, as in <Event,during(E)> or <ThemRole,Theme>."""
+        """Return all arguments in self.args where the arg paramter matches one of
+        the argument's elements. Note that an argument is a pair of an argument type
+        and an argument value, as in <Event,during(E)> or <ThemRole,Theme>."""
         return [a for a in self.args if arg in a]
 
     def html(self):
@@ -221,10 +205,8 @@ class Restrictions(object):
     syntactic restrictions."""
 
     def __str__(self):
-        if self.is_empty():
-            return '()'
-        op = ' & ' if self.logic == 'and' else ' | '
-        return "(%s)" % op.join([str(s) for s in self.restrictions])
+        operator = ' & ' if self.logic == 'and' else ' | '
+        return "(%s)" % operator.join([str(s) for s in self.restrictions])
 
     def is_empty(self):
         return self.restrictions == []
@@ -290,6 +272,50 @@ class Restriction(object):
         return "%s%s" % (self.srvalue, self.srtype)
 
 
+class PrettyPrinter(object):
+
+    """Pretty printer for verb classes.
+
+    >>> PrettyPrinter().pp(verbclass)
+
+    """
+
+    def __init__(self, step='    '):
+        self.step = step
+
+    def pp(self, verbclass, indent=0, nl=False):
+        print("%s<VerbClass %s>" % (indent * self.step, verbclass.ID))
+        print("%s%s%s" % (indent * self.step, self.step, ' '.join(verbclass.member_names)))
+        for themrole in verbclass.themroles:
+            self.pp_themrole(themrole, indent + 1)
+        for frame in verbclass.frames:
+            self.pp_frame(frame, indent + 1)
+        for subclass in verbclass.subclasses:
+            self.pp(subclass, indent + 1)
+        if nl:
+            print()
+
+    def pp_themrole(self, themrole, indent=0):
+        print("%s<%s %s>" % (self.step * indent, '\u03b8', themrole))
+
+    def pp_frame(self, frame, indent=0):
+        print("%s<Frame %s>" % (indent * self.step, frame.description))
+        for example in frame.examples:
+            print('%s  "%s"' % (indent * self.step, example))
+        for role in frame.syntax:
+            print("%s  %s" % (indent * self.step, role))
+        for pred in frame.predicates:
+            print("%s  %s" % (indent * self.step, pred))
+
+
 def psoup(soup):
     """Utility to print the soup xml on one line."""
     print("SOUP - %s" % str(soup).replace("\n", ''))
+
+
+if __name__ == '__main__':
+
+    vn = VerbNet(limit=5)
+    for vclass in vn.classes:
+        print(vclass)
+        #PrettyPrinter().pp(vclass, nl=True)
