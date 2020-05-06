@@ -10,11 +10,11 @@ image search function in verbnetgl.py
 The main function is create_schema_to_verbnet_mappings(), which creates a bunch
 of html pages with mappings between image schema and VerbNet.
 
-TODO: this is now out-of-sync with the verbnetparser code so it gives errors
+TODO: this is now out-of-sync with the verbnet code so it gives errors
 
 """
 
-from verbnetparser import VerbNetParser
+from verbnet import VerbNet
 import verbnetgl
 from utils.writer import HtmlClassWriter
 from utils.search import search_by_ID
@@ -249,11 +249,11 @@ def create_schema_to_verbnet_mappings(vn_classes):
 
 if __name__ == '__main__':
 
-    vn = VerbNetParser(max_count=50)
-    #vn = VerbNetParser(file_list='list-motion-classes.txt')
-    #vn = VerbNetParser(file_list='list-random.txt')
-    #vn = VerbNetParser()
-    vn_classes = [verbnetgl.GLVerbClass(vc) for vc in vn.verb_classes]
+    vn = VerbNet(max_count=50)
+    #vn = VerbNet(file_list='list-motion-classes.txt')
+    #vn = VerbNet(file_list='list-random.txt')
+    #vn = VerbNet()
+    vn_classes = [verbnetgl.GLVerbClass(vc) for vc in vn.classes]
 
     test_image_searches(vn_classes)
     create_schema_to_verbnet_mappings(vn_classes)

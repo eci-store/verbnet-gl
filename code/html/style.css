@@ -7,8 +7,8 @@ table.bordered { border: 1px solid darkgrey; }
 td.bordered { border: 1px solid gray; padding: 5pt; }
 
 /* skyblue = rgb(135, 206, 250), mimicking verbnet page */
-h1 { padding: 10px;  margin-bottom: 15pt; border: 1px solid gray;
-     background-color: skyblue; }
+h1, h2 { padding: 10px;  margin-bottom: 15pt; border: 1px solid gray;
+	 background-color: skyblue; }
 
 a:link { color: black; text-decoration: none; }
 a:visited { color: darkblue; text-decoration: none; }

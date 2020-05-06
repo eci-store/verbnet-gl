@@ -1,12 +1,12 @@
 """verbnetgl.py
 
-This file contains the classes for the form of Verbnet that has been enhanced
+This file contains the classes for the version of Verbnet that has been enhanced
 with GL event and qualia structures. The classes themselves do all conversions
-necessary given a VerbClass from verbnetparser.py.
+necessary given a VerbClass from verbnet.py.
 
 To run this you first need to copy config.sample.py into config.py and edit it
 if needed by changing the verbnet location. The file config.py is needed so the
-VerbNet parser can find the VerbNet directory.
+verbnet module can find the VerbNet sources.
 
 Run this script in one of the following ways:
 
@@ -22,13 +22,8 @@ $ python verbnetgl.py -d
 
 $ python verbnetgl.py -f lists/motion-classes.txt
 
-    Runs the main code, but now only on the classes listed in
+    Runs the main code, but now only on the classes listed in the file
     lists/motion-classes.txt. Results are written to html/index.html.
-
-$ python verbnetgl.py -c give-13.1
-
-    Runs the main code, but now only on the one class given as an
-    argument. Results are written to html/index.html.
 
 $ python verbnetgl.py -t
 $ python verbnetgl.py -td
@@ -40,9 +35,12 @@ The code here is designed to run on Verbnet 3.3.
 
 """
 
-import os, sys, getopt
+import os
+import sys
+import getopt
+import copy
 
-from verbnetparser import read_verbnet
+from verbnet import VerbNet
 from utils.ansi import BOLD, GREY, END
 from utils.writer import HtmlWriter
 from utils.formula import Pred, At, Have, Holds, Not, Var
@@ -51,7 +49,9 @@ import utils.tests
 
 
 VERBNET_VERSION = '3.3'
-VERBNET_URL = 'http://verbs.colorado.edu/verb-index/vn3.3/vn/reference.php'
+
+VERBNET_URL = 'http://verbs.colorado.edu/verb-index/vn3.3/vn'
+
 
 # Dictionary of roles and their abbreviations
 ROLES = { 'Agent': 'Ag',
@@ -84,54 +84,51 @@ class VerbnetGL(object):
 
     """Class for enriching Verbnet with GL qualia and event structure."""
 
-    def __init__(self, debug_mode, filelist, vnclass):
+    def __init__(self, debug_mode, filelist):
         """First read Verbnet, then transform all Verbnet classes into classes
         enriched with GL notions."""
         if debug_mode:
-            verb_classes = read_verbnet(max_count=50)
+            self.vn = VerbNet(limit=50)
         elif filelist is not None:
-            verb_classes = read_verbnet(file_list=filelist)
-        elif vnclass is not None:
-            verb_classes = read_verbnet(vnclass=vnclass)
+            self.vn = VerbNet(file_list=filelist)
         else:
-            verb_classes = read_verbnet()
-        self.verb_classes = [GLVerbClass(vc) for vc in verb_classes]
+            self.vn = VerbNet()
+        self.classes = []
+        for vc in self.vn.classes:
+            glvc = GLVerbClass(vc)
+            self.classes.append(glvc)
 
     def __str__(self):
-        return "<VerbnetGL classes=%s>" % len(self.verb_classes)
+        return "<VerbnetGL classes=%s>" % len(self.classes)
 
-    def get_motion_classes(self):
-        return [vc for vc in self.verb_classes if vc.is_motion_class()]
+    def motion_classes(self):
+        return [vc for vc in self.classes if vc.is_motion()]
 
-    def get_ch_of_poss_classes(self):
-        return [vc for vc in self.verb_classes if vc.is_ch_of_poss_class()]
+    def change_of_possession_classes(self):
+        return [vc for vc in self.classes if vc.is_change_of_possession()]
 
-    def get_tr_of_info_classes(self):
-        return [vc for vc in self.verb_classes if vc.is_tr_of_info_class()]
+    def transfer_of_info_classes(self):
+        return [vc for vc in self.classes if vc.is_transfer_of_info()]
 
-    def get_ch_of_state_classes(self):
-        return [vc for vc in self.verb_classes if vc.is_ch_of_state_class()]
+    def change_of_state_classes(self):
+        return [vc for vc in self.classes if vc.is_change_of_state()]
 
     def test(self):
         """Run the informal tests from the test module."""
-        utils.tests.test_all(self.verb_classes, GLVerbClass)
+        utils.tests.test_all(self.classes, GLVerbClass)
 
     def write(self):
-        """This is what produces the output with motion classes, possession classes,
-        change of state classes and change of info classes."""
-        motion_vcs = self.get_motion_classes()
-        ch_of_poss_vcs = self.get_ch_of_poss_classes()
-        tr_of_info_vcs = self.get_tr_of_info_classes()
-        ch_of_state_vcs = self.get_ch_of_state_classes()
+        """Produce the output with motion classes, possession classes, change of state
+        classes and transfer of info classes."""
         writer = HtmlWriter(url=VERBNET_URL, version=VERBNET_VERSION)
-        writer.write(motion_vcs, 'Motion', 'motion')
-        writer.write(ch_of_poss_vcs, 'Change of Possession', 'ch_of_poss')
-        writer.write(tr_of_info_vcs, 'Change of Info', 'ch_of_info')
-        writer.write(ch_of_state_vcs, 'Change of State', 'ch_of_state')
+        writer.write(self.motion_classes(), 'Motion')
+        writer.write(self.change_of_possession_classes(), 'Change of Possession')
+        writer.write(self.transfer_of_info_classes(), 'Change of Info')
+        writer.write(self.change_of_state_classes(), 'Change of State')
         writer.finish()
 
     def print_class_roles(self):
-        for vc in self.verb_classes:
+        for vc in self.classes:
             print("%-30s\t%s" % (vc.ID, ' '.join([r.role_type for r in vc.roles])))
 
 
@@ -139,15 +136,42 @@ class GLVerbClass(object):
 
     """VerbClass analogue, with an update mostly to frames"""
 
-    def __init__(self, verbclass):
-        self.verbclass = verbclass
+    def __init__(self, verbclass, parent=None):
         self.ID = verbclass.ID
-        self.members = verbclass.members
-        self.names = verbclass.names
-        self.roles = verbclass.themroles
-        self.frames = self.frames()
-        self.subclasses = [GLSubclass(sub, self.roles)
-                           for sub in verbclass.subclasses]
+        self.verbclass = verbclass            # instance of verbnet.VerbClass
+        self.members = verbclass.members      # keep some local references
+        self.names = verbclass.member_names
+        self.roles = []
+        self.frames = []
+        self.subclasses = []
+        self._initialize_roles(parent)
+        # the frames need to be done after the roles because the roles are
+        # needed when you add the oppositions to the frames
+        self._initialize_frames()
+        self._initialize_subclasses()
+
+    def _initialize_frames(self):
+        for frame in self.verbclass.frames:
+            self.frames.append(GLFrame(self, frame))
+
+    def _initialize_subclasses(self):
+        for sub in self.verbclass.subclasses:
+            self.subclasses.append(GLVerbClass(sub, self))
+
+    def _initialize_roles(self, parent):
+        """Combine the thematic roles of the parent class and the current verb
+        class. Replaces any version of the parent class's role with one from the
+        subclass. If there is no parent just use the roles as they are. Note
+        that subclasses only specify those roles that are different from the
+        role on the parent."""
+        if parent is None:
+            self.roles = self.verbclass.roles
+        else:
+            self.roles = copy.copy(parent.roles)
+            for role in self.verbclass.roles:
+                for (i, parentrole) in enumerate(self.roles):
+                    if parentrole.role_type == role.role_type:
+                        self.roles[i] = role
 
     def __str__(self):
         return "<GLVerbClass \"%s\" roles=%s frames=%s subclasses=%s members=%s>" \
@@ -157,33 +181,27 @@ class GLVerbClass(object):
     def __lt__(self, other):
         return self.ID < other.ID
 
-    def is_motion_class(self):
+    def is_motion(self):
         """Return True if one of the frames is a motion frame."""
-        return len([f for f in self.frames if f.is_motion_frame()]) > 0
+        return self.verbclass.is_motion()
 
-    def is_ch_of_poss_class(self):
+    def is_change_of_possession(self):
         """Return True if one of the frames is a ch_of_poss frame."""
-        return len([f for f in self.frames
-                    if f.is_ch_of_poss_frame()]) > 0
+        return self.verbclass.is_change_of_possession()
 
-    def is_tr_of_info_class(self):
+    def is_transfer_of_info(self):
         """Return True if one of the frames is a tr_of_info frame."""
-        return len([f for f in self.frames
-                    if f.is_tr_of_info_frame()]) > 0
+        return self.verbclass.is_transfer_of_info()
 
-    def is_ch_of_state_class(self):
+    def is_change_of_state(self):
         """Return True if one of the frames is a ch_of_state frame."""
-        return len([f for f in self.frames
-                    if f.is_ch_of_state_frame()]) > 0
+        return self.verbclass.is_change_of_state()
 
     def has_roles(self, role_types):
         """Returns True if the role_types are all in the roles on the verb class,
         returns False otherwise."""
         class_roles = [r.role_type for r in self.roles]
         return set(role_types) <= set(class_roles)
-
-    def frames(self):
-        return [GLFrame(self, frame) for frame in self.verbclass.frames]
 
     def pp(self):
         print(bold(str(self)), "\n")
@@ -192,59 +210,17 @@ class GLVerbClass(object):
             print()
 
 
-class GLSubclass(GLVerbClass):
-
-    """Represents a subclass to a GLVerbClass. This needs to be different from
-    GLVerbClass because VerbNet seems to change the THEMROLES section of the
-    subclass to only include thematic roles that differ from the main class,
-    but does not list all the roles that stay the same. Since we need to update
-    self.roles, we can't call __init__ on the superclass because that would call
-    self.frames and self.subclasses before we updated our roles properly."""
-
-    # TODO: check this for proper nesting
-
-    def __init__(self, verbclass, parent_roles):
-        self.verbclass = verbclass
-        self.ID = verbclass.ID
-        self.members = verbclass.members
-        self.names = verbclass.names
-        self.parent_roles = parent_roles
-        self.subclass_only_roles = verbclass.themroles
-        self.roles = self.themroles()
-        self.frames = self.frames()
-        self.subclasses = [GLSubclass(sub, self.roles)
-                           for sub in verbclass.subclasses]
-
-    def themroles(self):
-        """Combines the thematic roles of the parent class and the current
-        subclass. Replaces any version of the parent class's role with one from
-        the subclass."""
-        final_roles = self.subclass_only_roles
-        for parent_role in self.parent_roles:
-            duplicate = False
-            for sub_role in self.subclass_only_roles:
-                if parent_role.role_type == sub_role.role_type:
-                    duplicate = True
-            if not duplicate:
-                final_roles.append(parent_role)
-        return final_roles
-
-
 class GLFrame(object):
 
     """GL enhanced VN frame that adds qualia and event structure, and links syn/sem
-    variables in the subcat to those in the event structure. Some parts of the
-    GLFrame are copied straight from the Frame it is created from, others are
-    adjusted somewhat (subcat) or built from scratch (qualia, events)."""
+    variables in the subcat to those in the event structure. It includes the
+    VerbNet frame in the vnframe instance variable and uses many of the elements
+    there, but some elements are copied and adjusted somewhat (subcat) or built
+    from scratch (qualia, events)."""
 
     def __init__(self, glverbclass, frame):
-        self.glverbclass = glverbclass          # instance of GLVerbClass
-        self.vnframe = frame                    # instance of verbnetparser.Frame
-        self.class_roles = glverbclass.roles    # list of verbnetparser.ThematicRoles
-        self.description = frame.description    # unicode string, primary description
-        self.examples = frame.examples          # list of unicode strings
-        self.predicates = frame.predicates      # list of verbnetparser.Predicate
-        self.syntax = frame.syntax              # list of verbnetparser.SyntacticRole
+        self.glverbclass = glverbclass        # instance of GLVerbClass
+        self.vnframe = frame                  # instance of verbnet.Frame
         self.subcat = Subcat(self)
         self.qualia = Qualia(self)
         self.events = EventStructure(self)
@@ -252,44 +228,11 @@ class GLFrame(object):
 
     def __str__(self):
         return "<GLFrame %s [%s] '%s'>" % \
-            (self.glverbclass.ID, self.description, self.examples[0])
+            (self.glverbclass.ID, self.vnframe.description, self.vnframe.examples[0])
 
     def find_predicates(self, pred_value):
         """Returns the list of Predicates where the value equals pred_value."""
-        return [p for p in self.predicates if p.value == pred_value]
-
-    def find_predicates_with_argval(self, argvalue):
-        """Returns all those predicates that have an argument value equal to
-        argvalue. Note that arguments are pairs like <Event,during(E)> or
-        <ThemRole,Theme>. Does not just return the predicate but a pair of
-        predicate and argument which means that in some cases the same predicate
-        could be returned more than once, but with different arguments."""
-        answer = []
-        for pred in self.predicates:
-            for argument in pred.args:
-                if argument[1] == argvalue:
-                    answer.append([pred, argument])
-        return answer
-
-    def is_motion_frame(self):
-        """Returns True if one of the predicates' value is 'motion', returns False
-        otherwise."""
-        return True if self.find_predicates('motion') else False
-
-    def is_ch_of_poss_frame(self):
-        """Returns True if one of the predicates has a 'ch_of_poss' argument value,
-        returns False otherwise."""
-        return True if self.find_predicates_with_argval('ch_of_poss') else False
-
-    def is_tr_of_info_frame(self):
-        """Returns True if one of the predicates has a 'tr_of_info' argument value,
-        returns False otherwise."""
-        return True if self.find_predicates_with_argval('tr_of_info') else False
-
-    def is_ch_of_state_frame(self):
-        """Returns True if one of the predicates has a 'ch_of_state' argument value,
-        returns False otherwise."""
-        return True if self.find_predicates_with_argval('ch_of_state') else False
+        return self.vnframe.find_predicates(pred_value)
 
     def add_oppositions(self):
         """Add oppositions for each frame to event and qualia structure."""
@@ -299,10 +242,11 @@ class GLFrame(object):
         # For each frame, we restart unbound variable numbering.
         Var.reset_unbound_variable_count()
         # TODO: need to decide whether the groups of frames we do this for are
-        # disjoint or not, for now we assume they are.
-        if self.is_motion_frame():
+        # disjoint or not, for now we assume they are and that seems to be
+        # correct for the groups we use as of May 2020.
+        if self.vnframe.is_motion():
             GLMotionFactory(self).make()
-        elif self.is_ch_of_poss_frame():
+        elif self.vnframe.is_change_of_possession():
             GLChangeOfPossessionFactory(self).make()
 
     def get_moving_objects(self):
@@ -311,7 +255,6 @@ class GLFrame(object):
         thematic roles and connects them to variables in the subcat."""
         predicates = self.find_predicates('motion')
         # motion predicates look like "motion(during(E), Agent)"
-        # TODO: get rid of the last index, use class with type and value vars
         role_names = [p.args[1][1] for p in predicates]
         return [self.get_role(r) for r in role_names]
 
@@ -319,7 +262,6 @@ class GLFrame(object):
         predicates = self.find_predicates('location')
         # locations have three args: "location(E, Agent, Location)"
         role_names = [(p.args[1][1], p.args[2][1]) for p in predicates]
-        #print role_names
         return [(self.get_role(r1), self.get_role(r2)) for r1, r2 in role_names]
 
     def get_initial_location(self):
@@ -362,24 +304,25 @@ class GLFrame(object):
 
     def pp_roles(self, indent=0):
         print("%s%s" % (indent * ' ', ul('roles')))
-        for role in self.class_roles:
+        for role in self.glverbclass.roles:
             print("%s   %s" % (indent * ' ', role))
 
     def pp_variables(self, indent=0):
-        print("%svariables = { %s }" \
-            % (indent * ' ',
-               ', '.join(["%s(%s)" % (r, v) for r, v in list(self.role2var.items())])))
+        print("%svariables = { %s }"
+              % (indent * ' ',
+                 ', '.join(["%s(%s)" % (r, v)
+                            for r, v in list(self.role2var.items())])))
 
     def pp(self, indent=0):
-        name = self.glverbclass.ID + ' -- ' + self.description
+        name = self.glverbclass.ID + ' -- ' + self.vnframe.description
         print("%s%s\n" % (indent * ' ', bold(name)))
-        for example in self.examples:
+        for example in self.vnframe.examples:
             print("   %s\"%s\"" % (indent * ' ', example))
-        print(); self.pp_roles(indent+3)
-        print(); self.pp_predicates(indent+3)
-        print(); self.pp_subcat(indent+3)
-        print(); self.pp_qualia(indent+3)
-        print(); self.events.pp(indent+3)
+        print(); self.pp_roles(indent + 3)
+        print(); self.pp_predicates(indent + 3)
+        print(); self.pp_subcat(indent + 3)
+        print(); self.pp_qualia(indent + 3)
+        print(); self.events.pp(indent + 3)
 
 
 class Subcat(object):
@@ -393,7 +336,7 @@ class Subcat(object):
         different phrases/roles"""
         self.glframe = glframe
         self.members = []
-        for synrole in self.glframe.syntax:
+        for synrole in self.glframe.vnframe.syntax:
             if synrole.pos in ["ADV", "PREP", "ADJ"]:
                 self.members.append(SubcatElement(None, synrole))
                 continue
@@ -429,7 +372,7 @@ class SubcatElement(object):
     Note that self.role is a string, usually with one role like 'Agent', but
     also a list of prepositions like 'from out_of'."""
 
-    def __init__(self, var, synrole, themrole=None):
+    def __init__(self, var, synrole):
         self.var = var
         self.cat = synrole.pos
         self.role = synrole.value
@@ -447,7 +390,8 @@ class SubcatElement(object):
             return "<span class=%s>%s</span>" % (classname, text)
         if self.role is not None and self.cat in ('NP', 'PP'):
             if self.var is not None:
-                return "%s(%s)" % (add_class(self.role, 'role'), Var(self.var).html())
+                return "%s(%s)" \
+                    % (add_class(self.role, 'role'), Var(self.var).html())
             else:
                 print("WARNING: unexpected subcat ", self)
         elif self.var == 'e':
@@ -482,8 +426,8 @@ class EventStructure(object):
 
     def pp(self, indent=0):
         print("%s%s" % (indent * ' ', ul('event-structure')))
-        print("%s   var = %s" % (indent*' ', self.var))
-        print("%s   %s" % (indent*' ', self))
+        print("%s   var = %s" % (indent * ' ', self.var))
+        print("%s   %s" % (indent * ' ', self))
 
     def html(self):
         return '<br>\n'.join([f.html() for f in self.formulas])
@@ -558,8 +502,8 @@ class GLFactory(object):
 
     def frame_description(self):
         return "%s [%s] '%s'" % (self.glframe.glverbclass.ID,
-                                 self.glframe.description,
-                                 self.glframe.examples[0])
+                                 self.glframe.vnframe.description,
+                                 self.glframe.vnframe.examples[0])
 
     def pp_cases(self, cases):
         print("\n%s\n" % self.frame_description())
@@ -569,7 +513,8 @@ class GLFactory(object):
     def debug(self, roles):
         print("\n%s -- %s\n" % (self.glframe.glverbclass.ID,
                                 self.glframe.description))
-        self.glframe.pp_variables(3); print()
+        self.glframe.pp_variables(3)
+        print()
         for role in roles:
             print("   | %s" % role)
 
@@ -592,7 +537,7 @@ class GLMotionFactory(GLFactory):
     def make(self):
         case = self.__class__.determine_case(self.glframe)
         if case is None:
-            print("WARNING: no case for", self.frame_description())
+            print("WARNING: no case for", self.glframe)
         elif case in [('Agent', 'Theme', 'Location'),
                       ('Agent', 'Location')]:
             self.harvest_location()
@@ -621,7 +566,7 @@ class GLMotionFactory(GLFactory):
             self.glframe.events.add(Holds(Var(self.glframe.events.var), at))
 
     def harvest_obj_source_destination(self):
-        """Deals with the regualr case, where initial loacation and desctination
+        """Deals with the regular case, where initial location and destination
         roles may be expressed."""
         # TODO: add the instrument (adding it to moving objects, but not by
         # changing get_moving_objects())
@@ -673,7 +618,7 @@ class GLMotionFactory(GLFactory):
             qualia.add( Opposition(Not(at2), at2) )
             qualia.add( Pred('path', [path_var, Var(obj.var), Var(trajectory.var)]) )
             events.add( Holds(Var('e1'), at1) )
-            events.add( Holds(Var('e2'), at2) )                 
+            events.add( Holds(Var('e2'), at2) )
 
 
 class GLChangeOfPossessionFactory(GLFactory):
@@ -730,7 +675,8 @@ class Opposition(object):
         return "Opposition(%s, %s)" % (self.pred1, self.pred2)
 
     def html(self):
-        def tag(text): return "<span class=opposition>%s</span>" % text
+        def tag(text):
+            return "<span class=opposition>%s</span>" % text
         return "<nobr>%s(%s, %s)</nobr>" \
             % (tag('Opposition'), self.pred1.html(), self.pred2.html())
 
@@ -740,7 +686,6 @@ class Opposition(object):
 def read_options():
     debug_mode = False
     filelist = None
-    vnclass = None
     run_tests = False
     opts, arg = getopt.getopt(sys.argv[1:], 'dtf:c:', [])
     for opt, arg in opts:
@@ -750,9 +695,7 @@ def read_options():
             debug_mode = True
         if opt == '-f':
             filelist = arg
-        if opt == '-c':
-            vnclass = arg
-    return debug_mode, filelist, vnclass, run_tests
+    return debug_mode, filelist, run_tests
 
 
 def bold(text):
@@ -769,12 +712,12 @@ def ul(text):
 
 if __name__ == '__main__':
 
-    debug_mode, filelist, vnclass, run_tests = read_options()
-    vngl = VerbnetGL(debug_mode, filelist, vnclass)
+    debug_mode, filelist, run_tests = read_options()
+    vngl = VerbnetGL(debug_mode, filelist)
 
     if run_tests:
         vngl.test()
     else:
         vngl.write()
 
-    #vngl.print_class_roles()
+    # vngl.print_class_roles()

@@ -6,6 +6,7 @@ May at some point do some niftier search than it does now.
 
 """
 
+
 def search_by_predicate(verbclasslist, pred_type):
     """Returns verbclasses that exactly match the predicate."""
     results = []
@@ -148,7 +149,7 @@ def image_schema_search(verbclasslist, scheme, second_round=True, inclusive=Fals
         for subclass in vc.subclasses:
             sub_frames = recursive_frames(subclass)
             frame_and_id_list.extend(sub_frames)
-        for frame,frame_num,ID in frame_and_id_list:
+        for frame, frame_num, ID in frame_and_id_list:
             for member in frame.subcat:
                 if member.cat == "PREP":
                     if len(member.role) > 0:
@@ -169,7 +170,7 @@ def image_schema_search(verbclasslist, scheme, second_round=True, inclusive=Fals
             round_2 = []
             for vc_id, class_results in results:
                 result = set()
-                for frame,frame_num,ID in class_results:
+                for frame, frame_num, ID in class_results:
                     for member in frame.subcat:
                         if len(member.role) > 0:
                             if member.role[0] in scheme.role_list:
@@ -195,7 +196,7 @@ def image_schema_search2(verbclasslist, pp_list, sem_list=None):
         return sorted(round_1)
     else:
         round_2 = set()
-        for frame,vc_id in round_1:
+        for frame, vc_id in round_1:
             for member in frame.subcat:
                 if len(member.role) != 0:
                     for rol in member.role:

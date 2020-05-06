@@ -27,16 +27,23 @@ all verb classes set this to a sufficiently large number like 555.
 The TREETAGGER_DIR variable needs to be set to reflect the location of the
 TreeTagger.
 
-The VerbNet location should be specified in confix.txt.
+The VerbNet location should be specified in config.py.
 
 """
 
+# TODO: update to spaCy (see https://github.com/eci-store/verbnet-gl/issues/5)
+# TODO: use spaCy also for the tokenization since the TTK tokenizer is Python2
+# TODO: there are some nasty hard-wired directories here
+
 
 from collections import Counter
-import path
+
+sys.path.append('/Users/marc/Documents/git/tarsqi/ttk/components/preprocessing')
+sys.path.append('/Users/marc/Desktop/tarsqi/code/ttk/git/ttk/components/preprocessing/')
+
 from tokenizer import Tokenizer
 from treetagger import TreeTagger
-import verbnetparser;
+import verbnet;
 
 TREETAGGER_DIR = "/Applications/ADDED/nlp/treetagger"
 
@@ -51,7 +58,7 @@ def preprocess_sentences():
     sentences with tokenized and tagged form to the standard output."""
     # first get all the example sentences
     sentences = []
-    for vc in verbnetparser.read_verbnet(max_count=COUNT):
+    for vc in verbnet.VerbNet(max_count=COUNT):
         for frame in vc.frames:
             sentences.append(frame.examples[0])
     # then run the tagger over them
@@ -83,8 +90,8 @@ def tag(tagger, tokenized_string):
 
 class RestrictionFinder(object):
 
-    def __init__(self, vnclasses):
-        self.vnclasses = vnclasses
+    def __init__(self, vn):
+        self.vnclasses = vn.classes
         self.lookup = load_lookup()
         self.vnclass = None;
         self.vnframe = None;
@@ -237,6 +244,7 @@ def slurp_NP(lexes, idx):
                   'PP$ VVG', # relies on [his helping]
                   'NN', 'NNS', 'PP', 'NP'])
 
+
 def slurp_VERB(lexes, idx):
     return slurp(lexes, idx,
                  ['RB VH TO VV', # really have to empathize
@@ -277,6 +285,6 @@ if __name__ == '__main__':
     if PREPROCESS:
         preprocess_sentences()
 
-    verb_classes = verbnetparser.read_verbnet(max_count=COUNT)
-    rf = RestrictionFinder(verb_classes)
+    vn = verbnet.VerbNet(max_count=COUNT)
+    rf = RestrictionFinder(vn)
     rf.process()
