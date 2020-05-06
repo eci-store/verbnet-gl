@@ -130,7 +130,7 @@ class PredicateStatistics(object):
 # Get the goods
 if __name__ == '__main__':
     vnp = VerbNetParser()
-    vngl = [GLVerbClass(vc) for vc in vnp.verb_classes]
+    vngl = [GLVerbClass(vc) for vc in vnp.classes]
     print("Total Number of classes: ", len(vngl))
     stats = PredicateStatistics(vngl)
     print("\nPredicates: ", stats.predicates)

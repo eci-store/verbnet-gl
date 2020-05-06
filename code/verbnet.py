@@ -1,7 +1,7 @@
 """verbnet.py
 
 This program takes in VerbNet XML files and creates several classes for easy
-manipulation of the data.
+access to the data.
 
 """
 
@@ -16,7 +16,7 @@ class VerbNet(object):
     def __init__(self, limit=None, file_list=None):
         """Parse verbnet files and create instances of VerbClass. Read all verbnet
         files, but restrict the number of files to read if limit is not None, or
-        read filenames from a file if file_list is not None."""
+        read filenames from a file if file_list is given."""
         if file_list is None:
             fnames = [f for f in os.listdir(VERBNET_PATH) if f.endswith(".xml")]
             if limit is not None:
@@ -24,8 +24,14 @@ class VerbNet(object):
         else:
             fnames = ["%s.xml" % f.strip() for f in open(file_list).read().split()]
         fnames = [os.path.join(VERBNET_PATH, fname) for fname in fnames]
-        self.classes = [VerbClass(fname) for fname in fnames]
-        self.classes_idx = { cls.ID: cls for cls in self.classes }
+        self.classes = []
+        self.classes_idx = {}
+        for fname in fnames:
+            vc = VerbClass(fname)
+            self.classes.append(vc)
+            self.classes_idx[vc.ID] = vc
+        count = len(self.classes)
+        print("Loaded %s class%s" % (count, '' if count == 1 else 'es'))
 
 
 class VerbClass(object):
@@ -45,12 +51,12 @@ class VerbClass(object):
         self.name = self.soup.name
         self._initialize_members()
         self._initialize_frames()
-        self._initialize_thematic_roles()
+        self._initialize_roles()
         self._initialize_subclasses()
 
     def __str__(self):
         return "<VerbClass \"%s\" roles=%s frames=%s subclasses=%s members=%s>" \
-            % (self.ID, len(self.themroles), len(self.frames),
+            % (self.ID, len(self.roles), len(self.frames),
                len(self.subclasses), len(self.members))
 
     def _initialize_members(self):
@@ -65,16 +71,32 @@ class VerbClass(object):
         self.frames = [Frame(frame_soup, self, self.ID)
                        for frame_soup in self.soup.FRAMES.find_all("FRAME")]
 
-    def _initialize_thematic_roles(self):
+    def _initialize_roles(self):
         """Get all the thematic roles for a verb class and their selectional
         restrictions."""
-        self.themroles = [ThematicRole(them_soup)
-                          for them_soup in self.soup.THEMROLES.find_all("THEMROLE")]
+        self.roles = [ThematicRole(them_soup)
+                      for them_soup in self.soup.THEMROLES.find_all("THEMROLE")]
 
     def _initialize_subclasses(self):
         """Create a VerbClass instance for every subclass listed."""
         subs = self.soup.SUBCLASSES.find_all("VNSUBCLASS", recursive=False)
         self.subclasses = [VerbClass(self.fname, soup=sub) for sub in subs]
+
+    def is_motion(self):
+        """Return True if one of the frames is a motion frame."""
+        return len([f for f in self.frames if f.is_motion()]) > 0
+
+    def is_change_of_possession(self):
+        """Return True if one of the frames is a ch_of_poss frame."""
+        return len([f for f in self.frames if f.is_change_of_possession()]) > 0
+
+    def is_transfer_of_info(self):
+        """Return True if one of the frames is a tr_of_info frame."""
+        return len([f for f in self.frames if f.is_transfer_of_info()]) > 0
+
+    def is_change_of_state(self):
+        """Return True if one of the frames is a ch_of_state frame."""
+        return len([f for f in self.frames if f.is_change_of_state()]) > 0
 
 
 class Member(object):
@@ -104,7 +126,11 @@ class Frame(object):
         self.description = self.soup.DESCRIPTION.get('primary')
         self.examples = [e.text for e in self.soup.EXAMPLES.find_all("EXAMPLE")]
         self.syntax = self.get_syntax()
-        self.predicates = [Predicate(p) for p in self.soup.SEMANTICS.find_all("PRED")]
+        self.predicates = [Predicate(p)
+                           for p in self.soup.SEMANTICS.find_all("PRED")]
+
+    def __str__(self):
+        return "<Frame %s [%s]>" % (self.class_ID, self.description)
 
     def get_syntax(self):
         syntax_elements = [c for c in self.soup.SYNTAX.children
@@ -116,6 +142,39 @@ class Frame(object):
             if role.pos is None:
                 print("Warning: empty pos in %s" % role)
         return roles
+
+    def find_predicates(self, pred_value):
+        """Returns the list of Predicates where the value equals pred_value."""
+        return [p for p in self.predicates if p.value == pred_value]
+
+    def find_predicates_with_argval(self, argvalue):
+        """Returns all those predicates that have an argument value equal to
+        argvalue. Note that arguments are pairs like <Event,during(E)> or
+        <ThemRole,Theme>. Does not just return the predicate but a pair of
+        predicate and argument which means that in some cases the same predicate
+        could be returned more than once, but with different arguments."""
+        answer = []
+        for pred in self.predicates:
+            for argument in pred.args:
+                if argument[1] == argvalue:
+                    answer.append([pred, argument])
+        return answer
+
+    def is_motion(self):
+        """Return True if one of the predicates is a motion predicate."""
+        return True if self.find_predicates('motion') else False
+
+    def is_change_of_possession(self):
+        """Return True if one of the predicates is a ch_of_poss predicate."""
+        return True if self.find_predicates_with_argval('ch_of_poss') else False
+
+    def is_transfer_of_info(self):
+        """Returns True if one of the predicates has a tr_of_info predicate."""
+        return True if self.find_predicates_with_argval('tr_of_info') else False
+
+    def is_change_of_state(self):
+        """Returns True if one of the predicates is a ch_of_state predicate."""
+        return True if self.find_predicates_with_argval('ch_of_state') else False
 
 
 class ThematicRole(object):
@@ -193,9 +252,9 @@ class SyntacticRole(object):
     def get_restrictions(self):
         """Returns the restrictions for the role as defined on the thematic role
         that the syntactic role fullfills."""
-        for themrole in self.frame.vnclass.themroles:
-            if themrole.role_type == self.value:
-                return themrole.sel_restrictions
+        for role in self.frame.vnclass.roles:
+            if role.role_type == self.value:
+                return role.sel_restrictions
         return None
 
 
@@ -285,9 +344,11 @@ class PrettyPrinter(object):
 
     def pp(self, verbclass, indent=0, nl=False):
         print("%s<VerbClass %s>" % (indent * self.step, verbclass.ID))
-        print("%s%s%s" % (indent * self.step, self.step, ' '.join(verbclass.member_names)))
-        for themrole in verbclass.themroles:
-            self.pp_themrole(themrole, indent + 1)
+        print("%s%s%s" % (indent * self.step,
+                          self.step,
+                          ' '.join(verbclass.member_names)))
+        for role in verbclass.roles:
+            self.pp_role(role, indent + 1)
         for frame in verbclass.frames:
             self.pp_frame(frame, indent + 1)
         for subclass in verbclass.subclasses:
@@ -295,8 +356,8 @@ class PrettyPrinter(object):
         if nl:
             print()
 
-    def pp_themrole(self, themrole, indent=0):
-        print("%s<%s %s>" % (self.step * indent, '\u03b8', themrole))
+    def pp_role(self, role, indent=0):
+        print("%s<%s %s>" % (self.step * indent, '\u03b8', role))
 
     def pp_frame(self, frame, indent=0):
         print("%s<Frame %s>" % (indent * self.step, frame.description))
@@ -308,14 +369,9 @@ class PrettyPrinter(object):
             print("%s  %s" % (indent * self.step, pred))
 
 
-def psoup(soup):
-    """Utility to print the soup xml on one line."""
-    print("SOUP - %s" % str(soup).replace("\n", ''))
-
-
 if __name__ == '__main__':
 
     vn = VerbNet(limit=5)
     for vclass in vn.classes:
         print(vclass)
-        #PrettyPrinter().pp(vclass, nl=True)
+        # PrettyPrinter().pp(vclass, nl=True)

@@ -90,8 +90,8 @@ def tag(tagger, tokenized_string):
 
 class RestrictionFinder(object):
 
-    def __init__(self, vnclasses):
-        self.vnclasses = vnclasses
+    def __init__(self, vn):
+        self.vnclasses = vn.classes
         self.lookup = load_lookup()
         self.vnclass = None;
         self.vnframe = None;
@@ -285,6 +285,6 @@ if __name__ == '__main__':
     if PREPROCESS:
         preprocess_sentences()
 
-    verb_classes = verbnet.VerbNet(max_count=COUNT)
-    rf = RestrictionFinder(verb_classes)
+    vn = verbnet.VerbNet(max_count=COUNT)
+    rf = RestrictionFinder(vn)
     rf.process()

@@ -253,7 +253,7 @@ if __name__ == '__main__':
     #vn = VerbNet(file_list='list-motion-classes.txt')
     #vn = VerbNet(file_list='list-random.txt')
     #vn = VerbNet()
-    vn_classes = [verbnetgl.GLVerbClass(vc) for vc in vn.verb_classes]
+    vn_classes = [verbnetgl.GLVerbClass(vc) for vc in vn.classes]
 
     test_image_searches(vn_classes)
     create_schema_to_verbnet_mappings(vn_classes)

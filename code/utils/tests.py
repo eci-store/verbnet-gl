@@ -4,7 +4,8 @@ This is here to de-clutter the verbnetgl module a bit.
 
 """
 
-import itertools, textwrap
+import itertools
+import textwrap
 
 from .writer import HtmlWriter
 from .search import search_by_predicate, search_by_ID, search_by_argtype
@@ -34,9 +35,9 @@ def test_print_some_classes(vn_classes):
     preds = ["motion", "transfer", "adjust", "cause", "transfer_info",
              "emotional_state", "location", "state", "wear", "approve"]
     results = { p: search_by_predicate(vn_classes, p) for p in preds }
-    result_classes = [i for i in itertools.chain.from_iterable(list(results.values()))]
+    result_classes = [i for i
+                      in itertools.chain.from_iterable(list(results.values()))]
     result_classes = sorted(set(result_classes))
-    #result_classes = set(result_classes)
     writer = HtmlWriter()
     writer.write(result_classes, "VN Classes")
     print("Results are written to html/index.html")
@@ -70,7 +71,8 @@ def test_ch_of_searches(vn_classes):
 
 
 def test_new_searches(vn_classes, GLVerbClass):
-    # This one is a bit ugly since we need to either import or hand in the GLVerbClass.
+    # This one is a bit ugly since we need to either import or hand in the
+    # GLVerbClass.
     prompt('test_new_searches')
     sbt = search_by_themroles
     sbp = search_by_POS
@@ -105,7 +107,7 @@ def test_new_searches(vn_classes, GLVerbClass):
 
 def test_predicate_search(vn_classes):
     prompt('test_predicate_search')
-    motion_vcs1 = [vc for vc in vn_classes if vc.is_motion_class()]
+    motion_vcs1 = [vc for vc in vn_classes if vc.is_motion()]
     motion_vcs2 = search_by_predicate(vn_classes, "motion")
     m1 = sorted([c.ID for c in motion_vcs1])
     m2 = sorted([c.ID for c in motion_vcs2])
@@ -121,4 +123,3 @@ def prompt(text):
     print((">>> RUNNING %s" % text))
     print(">>> Hit return to proceed...")
     input()
-    #eval(input())
